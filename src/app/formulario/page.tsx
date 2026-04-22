@@ -7,12 +7,12 @@ export const metadata = {
 
 export default function FormularioPage() {
   return (
-    <main className="min-h-screen bg-slate-50 py-10 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto mb-8 text-center space-y-4">
-        <h1 className="text-4xl font-extrabold tracking-tight text-slate-900">
+    <main className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8 font-sans">
+      <div className="max-w-3xl mx-auto mb-10 space-y-3">
+        <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
           Fondo Editorial
         </h1>
-        <p className="text-lg text-slate-600">
+        <p className="text-lg text-muted-foreground">
           Adquiere nuestras publicaciones completando el siguiente formulario.
         </p>
       </div>

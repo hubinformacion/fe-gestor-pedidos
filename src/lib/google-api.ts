@@ -27,14 +27,17 @@ export async function getCatalogo(): Promise<Libro[]> {
 
   return (res.data.values || [])
     .filter(r => r[0] || r[1])
-    .map(r => ({
-      id: String(r[0] ?? ''),
-      titulo: String(r[1] ?? ''),
-      precioNormal: parseFloat(r[2]) || 0,
-      precioCont: parseFloat(r[3]) || 0,
-      stock: parseInt(r[4]) || 0,
-      estado: (r[5] as 'Activo' | 'Inactivo') || 'Inactivo',
-    }));
+    .map(r => {
+      const estadoStr = r[5] ? String(r[5]).trim() : 'Activo'; // Si dejan la celda vacía, por defecto es Activo para no confundir.
+      return {
+        id: String(r[0] ?? ''),
+        titulo: String(r[1] ?? ''),
+        precioNormal: parseFloat(r[2]) || 0,
+        precioCont: parseFloat(r[3]) || 0,
+        stock: parseInt(r[4]) || 0,
+        estado: (estadoStr as 'Activo' | 'Inactivo'),
+      };
+    });
 }
 
 export async function descontarStock(items: ItemPedido[]): Promise<void> {

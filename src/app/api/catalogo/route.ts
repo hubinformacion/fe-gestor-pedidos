@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     }
     
     // Si no (frontend público), filtramos y devolvemos solo los que tienen estado "Activo"
-    const activos = libros.filter(l => l.estado === 'Activo');
+    const activos = libros.filter(l => l.estado.toLowerCase() === 'activo');
     return NextResponse.json(activos);
   } catch (e: any) {
     console.error('Error GET /api/catalogo:', e);
