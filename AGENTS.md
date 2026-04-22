@@ -61,7 +61,7 @@ GOOGLE_CLIENT_SECRET="tu-client-secret"
 GOOGLE_REFRESH_TOKEN="tu-refresh-token"
 
 # Spreadsheet
-GOOGLE_SPREADSHEET_ID=15rHy61t5xYDauyvxL5hbVNhRtL7Lh4hzhoLqdflg0FE
+GOOGLE_SPREADSHEET_ID=1XwbSll-MAUgdZFMTbCNtT8iNjuZ_3YODIMTmgDYYLkE
 
 # Dashboard
 DASHBOARD_SECRET=fondo2026secreto   # token para proteger /dashboard
@@ -74,7 +74,7 @@ EMAIL_CC=fondoeditorial@continental.edu.pe,jfalla@continental.edu.pe,ymandujanog
 
 ## 4. ESTRUCTURA DE GOOGLE SHEETS (Base de datos momentánea)
 
-### Spreadsheet ID: `15rHy61t5xYDauyvxL5hbVNhRtL7Lh4hzhoLqdflg0FE`
+### Spreadsheet ID: `1XwbSll-MAUgdZFMTbCNtT8iNjuZ_3YODIMTmgDYYLkE`
 
 ### Hoja: `items` — Catálogo de libros (Simplificado y Gestionable)
 | Col | Letra | Campo | Tipo |
