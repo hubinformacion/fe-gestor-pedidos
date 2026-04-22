@@ -1,36 +1,99 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Gestor de Pedidos - Fondo Editorial UC
 
-## Getting Started
+Sistema web para la gestión de pedidos de libros del Fondo Editorial de la Universidad Continental. Este proyecto incluye un formulario público de compra y un panel de administración (Dashboard) construido sobre Next.js, utilizando Google Sheets como base de datos momentánea y la API de Gmail para el envío de notificaciones automáticas.
 
-First, run the development server:
+## Tecnologías Utilizadas
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Framework**: Next.js (App Router)
+- **Lenguaje**: TypeScript
+- **UI & Estilos**: Tailwind CSS + shadcn/ui
+- **Base de Datos**: Google Sheets API (googleapis)
+- **Correos**: Gmail API
+- **Autenticación (Dashboard)**: Token simple (`DASHBOARD_SECRET`)
+- **Gestión de Fechas**: Day.js (Configurado a UTC-5)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Requisitos Previos
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Node.js (v18 o superior)
+- `pnpm` (Gestor de paquetes recomendado)
+- Credenciales OAuth 2.0 de Google Cloud Console (Client ID y Client Secret)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Instalación en un Nuevo Equipo de Desarrollo
 
-## Learn More
+1. Clona el repositorio:
+   ```bash
+   git clone <url-del-repositorio>
+   cd fe-gestor-pedidos
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+2. Instala las dependencias:
+   ```bash
+   pnpm install
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. Configura las variables de entorno:
+   - Copia o crea el archivo `.env.local` en la raíz del proyecto basándote en la siguiente estructura:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   ```env
+   # Google OAuth2 Credentials
+   GOOGLE_CLIENT_ID="tu-client-id.apps.googleusercontent.com"
+   GOOGLE_CLIENT_SECRET="tu-client-secret"
+   GOOGLE_REFRESH_TOKEN="tu-refresh-token"
+   
+   # Spreadsheet
+   GOOGLE_SPREADSHEET_ID="id-del-google-sheet"
+   
+   # Dashboard
+   DASHBOARD_SECRET="tu-password-secreto"
+   
+   # CC de correos (Correos adicionales para recibir notificaciones separados por comas)
+   EMAIL_CC="correo1@continental.edu.pe,correo2@continental.edu.pe"
+   ```
 
-## Deploy on Vercel
+4. Ejecuta el entorno de desarrollo:
+   ```bash
+   pnpm dev
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   El proyecto estará disponible en `http://localhost:3000`. 
+   - El formulario público está en `/formulario`
+   - El Dashboard está en `/dashboard`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Revocar o Renovar el Refresh Token
+
+El proyecto utiliza OAuth2 de Google. El `Refresh Token` permite que la aplicación genere automáticamente "Access Tokens" temporales sin requerir intervención manual constante. 
+
+Si el Refresh Token expira, se revoca o se requiere cambiar la cuenta de correo que envía las notificaciones, sigue estos pasos:
+
+1. Ingresa a **Google OAuth 2.0 Playground** (https://developers.google.com/oauthplayground/).
+2. Haz clic en la rueda dentada (Opciones) en la esquina superior derecha y marca la casilla **"Use your own OAuth credentials"**.
+3. Ingresa tu `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` configurados en tu proyecto de Google Cloud.
+4. En la lista de APIs, selecciona y autoriza:
+   - `https://www.googleapis.com/auth/spreadsheets`
+   - `https://www.googleapis.com/auth/gmail.send`
+5. Haz clic en **"Authorize APIs"** e inicia sesión con la cuenta de Gmail desde la cual quieres que salgan los correos.
+6. Una vez redireccionado de vuelta, haz clic en **"Exchange authorization code for tokens"**.
+7. Copia el nuevo `Refresh Token` proporcionado y reemplázalo en tu variable de entorno `GOOGLE_REFRESH_TOKEN` en Vercel o en tu `.env.local`.
+
+## Consideraciones sobre la Base de Datos y Futuras Migraciones
+
+El proyecto actualmente usa **Google Sheets** como una base de datos momentánea para facilitar la rápida transición desde Google Forms y permitir un manejo intuitivo por parte del personal administrativo.
+
+**Limitaciones actuales de Google Sheets:**
+- **Rendimiento y Escalabilidad:** Google API tiene límites estrictos de peticiones (Rate Limits). Operaciones masivas pueden causar demoras o errores `429 Too Many Requests`.
+- **Concurrencia:** Modificar registros de forma paralela desde múltiples dispositivos puede generar condiciones de carrera, sobrescribiendo información.
+- **Relaciones Complejas:** La gestión de inventario y pedidos está desnormalizada.
+
+**Recomendaciones para el futuro:**
+A medida que el Fondo Editorial y el volumen de pedidos crezca, se recomienda migrar a un sistema de base de datos relacional robusto:
+- **Base de Datos:** PostgreSQL.
+- **ORM:** Prisma o Drizzle ORM.
+- **Hosting de BD:** Supabase, Vercel Postgres o AWS RDS.
+- **Implementación:** La arquitectura actual está diseñada de tal forma que la lógica de Google Sheets se concentra exclusivamente en `src/lib/google-api.ts`. Migrar a SQL significará únicamente reescribir este archivo, conservando intactos todos los flujos de frontend (Formulario y Dashboard) y casi todos los endpoint en `/api`.
+
+## Despliegue en Vercel
+
+1. Desde Vercel, crea un nuevo proyecto e importa este repositorio.
+2. Asegúrate de configurar la variable `Framework Preset` en **Next.js**.
+3. En **Environment Variables**, añade todas las claves de tu `.env.local`.
+4. Vercel realizará el despliegue automático con el comando de build por defecto (`next build`).
