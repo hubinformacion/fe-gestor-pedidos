@@ -5,12 +5,13 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Eye, FileText, CheckCircle, Clock } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { Eye, FileText, Clock, Package, Mail, Phone, MapPin, User, Minus, Plus, ClipboardCheck } from 'lucide-react';
 import { toast } from 'sonner';
-import dayjs from 'dayjs';
+import { calcularSLA, parsearFecha } from '@/lib/date-utils';
 
 interface TablaPedidosProps {
   pedidos: Pedido[];
@@ -18,54 +19,68 @@ interface TablaPedidosProps {
   onRefresh: () => void;
 }
 
+interface ItemEntrega {
+  titulo: string;
+  cantidadSolicitada: number;
+  cantidadEntregada: number;
+}
+
 export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('todos');
   const [typeFilter, setTypeFilter] = useState<string>('todos');
 
-  // Modal State
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedPedido, setSelectedPedido] = useState<Pedido | null>(null);
 
   const [notesModalOpen, setNotesModalOpen] = useState(false);
   const [notesText, setNotesText] = useState('');
 
+  // Confirm delivery modal
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [itemsEntrega, setItemsEntrega] = useState<ItemEntrega[]>([]);
+  const [confirmLoading, setConfirmLoading] = useState(false);
+
   const [loadingCode, setLoadingCode] = useState<string | null>(null);
 
   const filtered = pedidos.filter(p => {
-    const matchSearch = p.codigo.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                        p.nombre.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchSearch = p.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.nombre.toLowerCase().includes(searchTerm.toLowerCase());
     const matchStatus = statusFilter === 'todos' || p.estado === statusFilter;
     const matchType = typeFilter === 'todos' || p.tipo === typeFilter;
     return matchSearch && matchStatus && matchType;
   });
 
-  const getStatusBadgeVariant = (estado: string) => {
-    switch (estado) {
-      case 'Pendiente': return 'secondary';
-      case 'Pagado': return 'default';
-      case 'Entregado': return 'default'; // Success green could be added to custom tailwind
-      case 'Cancelado': return 'destructive';
-      default: return 'outline';
+  const getSLADisplay = (inicio: string, fin: string) => {
+    if (!inicio) return 'No iniciado';
+    if (fin) {
+      const sla = calcularSLA(inicio, fin);
+      return sla ? `${sla} (Completado)` : 'N/A';
     }
+    // In progress: calc from inicio to now
+    const start = parsearFecha(inicio);
+    if (!start.isValid()) return 'N/A';
+    const now = new Date();
+    const diffMs = now.getTime() - start.toDate().getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const hours = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    if (hours === 0) return `${mins} min (En curso)`;
+    return `${hours}h ${mins}m (En curso)`;
   };
 
-  const getSLA = (inicio: string, fin: string, actualEstado: string) => {
-    if (!inicio) return 'No iniciado';
-    
-    // Si no ha terminado, calcular contra ahora
-    const start = dayjs(inicio, "DD/MM/YYYY HH:mm");
-    const end = fin ? dayjs(fin, "DD/MM/YYYY HH:mm") : dayjs();
-    
-    const diffHours = end.diff(start, 'hour');
-    const diffMins = end.diff(start, 'minute') % 60;
-    
-    if (fin) return `${diffHours}h ${diffMins}m (Completado)`;
-    return `${diffHours}h ${diffMins}m (En curso)`;
+  const parseLibros = (librosStr: string): { titulo: string; cantidad: number }[] => {
+    if (!librosStr) return [];
+    return librosStr.split(' | ').map(l => {
+      const parts = l.split(' x');
+      const titulo = parts.slice(0, -1).join(' x');
+      const cantidad = parseInt(parts[parts.length - 1]) || 1;
+      return { titulo, cantidad };
+    });
   };
 
   const handleUpdatePedido = async (
-    codigo: string, 
+    codigo: string,
     updates: { estado?: string; observaciones?: string; atendidoPor?: string }
   ) => {
     setLoadingCode(codigo);
@@ -75,9 +90,7 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ codigo, ...updates }),
       });
-
       if (!res.ok) throw new Error('Error de actualización');
-      
       toast.success('Pedido actualizado');
       onRefresh();
     } catch (e) {
@@ -117,13 +130,81 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
     setViewModalOpen(true);
   };
 
+  // ── Confirm delivery ──
+  const openConfirmDelivery = (pedido: Pedido) => {
+    setSelectedPedido(pedido);
+    const parsed = parseLibros(pedido.libros);
+    setItemsEntrega(parsed.map(p => ({
+      titulo: p.titulo,
+      cantidadSolicitada: p.cantidad,
+      cantidadEntregada: p.cantidad,
+    })));
+    setConfirmModalOpen(true);
+  };
+
+  const adjustEntrega = (index: number, delta: number) => {
+    setItemsEntrega(prev => prev.map((item, i) => {
+      if (i !== index) return item;
+      const newCant = Math.max(0, Math.min(item.cantidadSolicitada, item.cantidadEntregada + delta));
+      return { ...item, cantidadEntregada: newCant };
+    }));
+  };
+
+  const confirmarEntrega = async () => {
+    if (!selectedPedido) return;
+    setConfirmLoading(true);
+
+    const totalEntregado = itemsEntrega.reduce((s, i) => s + i.cantidadEntregada, 0);
+    const totalSolicitado = itemsEntrega.reduce((s, i) => s + i.cantidadSolicitada, 0);
+
+    const detallesEntrega = itemsEntrega
+      .map(i => `${i.titulo}: ${i.cantidadEntregada}/${i.cantidadSolicitada}`)
+      .join(' | ');
+
+    const notas = totalEntregado < totalSolicitado
+      ? `[ENTREGA PARCIAL] ${detallesEntrega}. ${selectedPedido.observaciones || ''}`
+      : `[ENTREGA COMPLETA] ${detallesEntrega}. ${selectedPedido.observaciones || ''}`;
+
+    try {
+      const res = await fetch(`/api/dashboard/estado?token=${encodeURIComponent(token)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          codigo: selectedPedido.codigo,
+          estado: 'Entregado',
+          observaciones: notas.trim(),
+        }),
+      });
+      if (!res.ok) throw new Error('Error al confirmar');
+      toast.success(totalEntregado < totalSolicitado
+        ? 'Entrega parcial registrada'
+        : 'Entrega completa registrada');
+      setConfirmModalOpen(false);
+      onRefresh();
+    } catch (e) {
+      toast.error('Error al confirmar la entrega');
+    } finally {
+      setConfirmLoading(false);
+    }
+  };
+
+  const getStatusStyle = (estado: string) => {
+    switch (estado) {
+      case 'Pendiente': return 'bg-amber-50 text-amber-700 border-amber-200';
+      case 'Pagado': return 'bg-blue-50 text-blue-700 border-blue-200';
+      case 'Entregado': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      case 'Cancelado': return 'bg-red-50 text-red-700 border-red-200';
+      default: return '';
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Filtros */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <Input 
-          placeholder="Buscar código o nombre..." 
-          value={searchTerm} 
+      <div className="flex flex-col sm:flex-row gap-3">
+        <Input
+          placeholder="Buscar código o nombre..."
+          value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
           className="max-w-xs"
         />
@@ -132,7 +213,7 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
             <SelectValue placeholder="Estado" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="todos">Todos los Estados</SelectItem>
+            <SelectItem value="todos">Todos los estados</SelectItem>
             {ESTADOS_FLUJO.map(e => (
               <SelectItem key={e} value={e}>{e}</SelectItem>
             ))}
@@ -143,7 +224,7 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
             <SelectValue placeholder="Tipo" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="todos">Todos los Tipos</SelectItem>
+            <SelectItem value="todos">Todos los tipos</SelectItem>
             <SelectItem value="Continental">Continental</SelectItem>
             <SelectItem value="Externo">Externo</SelectItem>
           </SelectContent>
@@ -151,40 +232,40 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
       </div>
 
       {/* Tabla */}
-      <div className="rounded-md border bg-card overflow-x-auto">
+      <div className="rounded-lg border bg-card overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Código</TableHead>
+              <TableHead className="w-[90px]">Código</TableHead>
               <TableHead>Fecha</TableHead>
               <TableHead>Cliente</TableHead>
-              <TableHead>Libros</TableHead>
+              <TableHead className="hidden lg:table-cell">Libros</TableHead>
               <TableHead>Total</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>Responsable</TableHead>
-              <TableHead className="text-center">Acciones</TableHead>
+              <TableHead className="text-center w-[120px]">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.map(p => (
-              <TableRow key={p.codigo}>
-                <TableCell className="font-medium whitespace-nowrap">{p.codigo}</TableCell>
-                <TableCell className="whitespace-nowrap text-sm text-muted-foreground">{p.fecha}</TableCell>
+              <TableRow key={p.codigo} className="group">
+                <TableCell className="font-mono font-semibold text-sm whitespace-nowrap">{p.codigo}</TableCell>
+                <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{p.fecha}</TableCell>
                 <TableCell>
-                  <div className="font-medium">{p.nombre}</div>
-                  <div className="text-xs text-muted-foreground">{p.tipo} {p.sede ? `- ${p.sede}` : ''}</div>
+                  <div className="font-medium text-sm">{p.nombre}</div>
+                  <div className="text-xs text-muted-foreground">{p.tipo}{p.sede ? ` · ${p.sede}` : ''}</div>
                 </TableCell>
-                <TableCell className="max-w-[200px] truncate text-sm" title={p.libros}>
+                <TableCell className="hidden lg:table-cell max-w-[220px] truncate text-xs text-muted-foreground" title={p.libros}>
                   {p.libros}
                 </TableCell>
-                <TableCell className="whitespace-nowrap font-medium">{p.total}</TableCell>
+                <TableCell className="whitespace-nowrap font-semibold text-sm">{p.total}</TableCell>
                 <TableCell>
                   <Select
                     value={p.estado}
                     onValueChange={(val) => handleStatusChange(p, val || 'Pendiente')}
                     disabled={loadingCode === p.codigo}
                   >
-                    <SelectTrigger className={`h-8 w-[130px] ${p.estado === 'Entregado' ? 'text-green-600 border-green-200 bg-green-50' : ''}`}>
+                    <SelectTrigger className={`h-7 w-[120px] text-xs font-medium border ${getStatusStyle(p.estado)}`}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -200,7 +281,7 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
                     onValueChange={(val) => handleAssign(p, val || '')}
                     disabled={loadingCode === p.codigo}
                   >
-                    <SelectTrigger className="h-8 w-[140px] text-xs">
+                    <SelectTrigger className="h-7 w-[130px] text-xs">
                       <SelectValue placeholder="Asignar..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -211,21 +292,29 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
                     </SelectContent>
                   </Select>
                 </TableCell>
-                <TableCell className="text-center">
-                  <div className="flex items-center justify-center space-x-1">
+                <TableCell>
+                  <div className="flex items-center justify-center gap-0.5">
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openView(p)} title="Ver detalles">
                       <Eye className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className={`h-8 w-8 ${p.observaciones ? 'text-primary' : 'text-muted-foreground'}`} onClick={() => openNotes(p)} title="Observaciones">
+                    <Button variant="ghost" size="icon"
+                      className={`h-8 w-8 ${p.observaciones ? 'text-primary' : 'text-muted-foreground'}`}
+                      onClick={() => openNotes(p)} title="Observaciones">
                       <FileText className="h-4 w-4" />
                     </Button>
+                    {(p.estado === 'Pagado') && (
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-600"
+                        onClick={() => openConfirmDelivery(p)} title="Confirmar entrega">
+                        <ClipboardCheck className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
             ))}
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center">
+                <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                   No se encontraron pedidos.
                 </TableCell>
               </TableRow>
@@ -234,69 +323,136 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
         </Table>
       </div>
 
-      {/* View Details Modal */}
+      {/* ── Detail Modal (expanded) ── */}
       <Dialog open={viewModalOpen} onOpenChange={setViewModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Detalle del Pedido: {selectedPedido?.codigo}</DialogTitle>
-          </DialogHeader>
+        <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto p-0">
           {selectedPedido && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4 text-sm">
-              <div className="space-y-4">
+            <>
+              {/* Modal header */}
+              <div className="sticky top-0 z-10 bg-card border-b px-6 py-4 flex items-center justify-between">
                 <div>
-                  <h4 className="font-semibold mb-1 border-b pb-1">Cliente</h4>
-                  <p><span className="text-muted-foreground">Nombre:</span> {selectedPedido.nombre}</p>
-                  <p><span className="text-muted-foreground">Documento:</span> {selectedPedido.tipoDoc} {selectedPedido.nroDoc}</p>
-                  <p><span className="text-muted-foreground">Contacto:</span> {selectedPedido.email} / {selectedPedido.telefono}</p>
-                  <p><span className="text-muted-foreground">Tipo:</span> {selectedPedido.tipo} {selectedPedido.sede ? `(${selectedPedido.sede})` : ''}</p>
+                  <DialogTitle className="text-xl font-bold">Pedido {selectedPedido.codigo}</DialogTitle>
+                  <DialogDescription className="text-sm text-muted-foreground mt-0.5">
+                    {selectedPedido.fecha} · {selectedPedido.tipo}{selectedPedido.sede ? ` · ${selectedPedido.sede}` : ''}
+                  </DialogDescription>
                 </div>
-                <div>
-                  <h4 className="font-semibold mb-1 border-b pb-1">Entrega</h4>
-                  <p><span className="text-muted-foreground">Modalidad:</span> {selectedPedido.tipoEntrega.toUpperCase()}</p>
-                  <p><span className="text-muted-foreground">Detalle:</span> {selectedPedido.detalleEntrega}</p>
-                </div>
+                <Badge className={`text-xs px-3 py-1 border ${getStatusStyle(selectedPedido.estado)}`} variant="outline">
+                  {selectedPedido.estado}
+                </Badge>
               </div>
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-semibold mb-1 border-b pb-1">Atención (SLA)</h4>
-                  <p className="flex items-center gap-1">
-                    <span className="text-muted-foreground">Responsable:</span> 
-                    {selectedPedido.atendidoPor || 'Ninguno'}
-                  </p>
-                  <p><span className="text-muted-foreground">Inicio:</span> {selectedPedido.fechaInicioAtencion || '--'}</p>
-                  <p><span className="text-muted-foreground">Fin:</span> {selectedPedido.fechaFinAtencion || '--'}</p>
-                  <p className="flex items-center gap-1 mt-1 text-primary font-medium">
-                    <Clock className="w-4 h-4" /> SLA: {getSLA(selectedPedido.fechaInicioAtencion, selectedPedido.fechaFinAtencion, selectedPedido.estado)}
-                  </p>
-                </div>
-              </div>
-              <div className="col-span-1 md:col-span-2 mt-2">
-                <h4 className="font-semibold mb-2 border-b pb-1">Libros Solicitados ({selectedPedido.cantidad} items)</h4>
-                <div className="bg-muted/30 p-3 rounded-md">
-                  {selectedPedido.libros.split(' | ').map((l, i) => (
-                    <div key={i} className="flex justify-between py-1 border-b last:border-0 border-muted">
-                      <span>{l.split(' x')[0]}</span>
-                      <span className="font-medium text-muted-foreground">x{l.split(' x')[1]}</span>
+
+              <div className="p-6 space-y-6">
+                {/* Client info */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-2">
+                      <User className="w-3.5 h-3.5" /> Datos del cliente
+                    </h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex gap-2">
+                        <span className="text-muted-foreground min-w-[80px]">Nombre</span>
+                        <span className="font-medium">{selectedPedido.nombre}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className="text-muted-foreground min-w-[80px]">Documento</span>
+                        <span>{selectedPedido.tipoDoc} {selectedPedido.nroDoc}</span>
+                      </div>
+                      <div className="flex gap-2 items-center">
+                        <Mail className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span className="text-sm">{selectedPedido.email}</span>
+                      </div>
+                      <div className="flex gap-2 items-center">
+                        <Phone className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span className="text-sm">{selectedPedido.telefono}</span>
+                      </div>
                     </div>
-                  ))}
-                  <div className="flex justify-end pt-2 mt-2 border-t font-bold text-lg">
-                    Total: {selectedPedido.total}
+                  </div>
+
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-2">
+                      <MapPin className="w-3.5 h-3.5" /> Entrega
+                    </h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex gap-2">
+                        <span className="text-muted-foreground min-w-[80px]">Modalidad</span>
+                        <span className="font-medium capitalize">{selectedPedido.tipoEntrega}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className="text-muted-foreground min-w-[80px]">Detalle</span>
+                        <span>{selectedPedido.detalleEntrega || '—'}</span>
+                      </div>
+                    </div>
+
+                    <Separator className="my-3" />
+
+                    <h4 className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-2">
+                      <Clock className="w-3.5 h-3.5" /> Atención (SLA)
+                    </h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex gap-2">
+                        <span className="text-muted-foreground min-w-[80px]">Responsable</span>
+                        <span className="font-medium">{selectedPedido.atendidoPor || '—'}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className="text-muted-foreground min-w-[80px]">Inicio</span>
+                        <span>{selectedPedido.fechaInicioAtencion || '—'}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className="text-muted-foreground min-w-[80px]">Fin</span>
+                        <span>{selectedPedido.fechaFinAtencion || '—'}</span>
+                      </div>
+                      <div className="flex gap-2 items-center text-primary font-medium">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>{getSLADisplay(selectedPedido.fechaInicioAtencion, selectedPedido.fechaFinAtencion)}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
+
+                <Separator />
+
+                {/* Books */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-2">
+                    <Package className="w-3.5 h-3.5" /> Libros solicitados ({selectedPedido.cantidad} items)
+                  </h4>
+                  <div className="border rounded-lg overflow-hidden">
+                    {parseLibros(selectedPedido.libros).map((item, i) => (
+                      <div key={i} className="flex items-center justify-between px-4 py-3 border-b last:border-0 text-sm">
+                        <span className="font-medium">{item.titulo}</span>
+                        <span className="text-muted-foreground font-mono">×{item.cantidad}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between items-center px-4 py-3 bg-muted/30 font-bold">
+                      <span>Total</span>
+                      <span className="text-lg text-primary">{selectedPedido.total}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Observations */}
+                {selectedPedido.observaciones && (
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Observaciones</h4>
+                    <p className="text-sm bg-muted/30 rounded-lg p-4 text-muted-foreground leading-relaxed">
+                      {selectedPedido.observaciones}
+                    </p>
+                  </div>
+                )}
               </div>
-            </div>
+            </>
           )}
         </DialogContent>
       </Dialog>
 
-      {/* Edit Notes Modal */}
+      {/* ── Notes Modal ── */}
       <Dialog open={notesModalOpen} onOpenChange={setNotesModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Observaciones - {selectedPedido?.codigo}</DialogTitle>
+            <DialogTitle>Observaciones — {selectedPedido?.codigo}</DialogTitle>
+            <DialogDescription>Notas internas visibles solo desde el dashboard.</DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <Label htmlFor="notas" className="mb-2 block">Notas internas del pedido</Label>
+          <div className="py-2">
             <Textarea
               id="notas"
               value={notesText}
@@ -307,7 +463,60 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setNotesModalOpen(false)}>Cancelar</Button>
-            <Button onClick={saveNotes}>Guardar Notas</Button>
+            <Button onClick={saveNotes}>Guardar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Confirm Delivery Modal ── */}
+      <Dialog open={confirmModalOpen} onOpenChange={setConfirmModalOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Confirmar Entrega — {selectedPedido?.codigo}</DialogTitle>
+            <DialogDescription>
+              Ajusta las cantidades realmente entregadas. Puedes reducir si no se pudo completar el pedido al 100%.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-1">
+            <div className="grid grid-cols-[1fr,auto] gap-2 text-xs font-semibold tracking-widest uppercase text-muted-foreground px-1 mb-2">
+              <span>Título</span>
+              <span className="text-center w-[140px]">Solicitado → Entregado</span>
+            </div>
+            {itemsEntrega.map((item, i) => (
+              <div key={i} className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/20 transition-colors">
+                <span className="text-sm font-medium flex-1 pr-3">{item.titulo}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-sm text-muted-foreground font-mono w-5 text-center">{item.cantidadSolicitada}</span>
+                  <span className="text-muted-foreground">→</span>
+                  <Button type="button" variant="outline" size="icon" className="h-7 w-7 rounded-full"
+                    disabled={item.cantidadEntregada <= 0}
+                    onClick={() => adjustEntrega(i, -1)}>
+                    <Minus className="h-3 w-3" />
+                  </Button>
+                  <span className={`text-sm font-bold font-mono w-5 text-center ${
+                    item.cantidadEntregada < item.cantidadSolicitada ? 'text-amber-600' : 'text-emerald-600'
+                  }`}>
+                    {item.cantidadEntregada}
+                  </span>
+                  <Button type="button" variant="outline" size="icon" className="h-7 w-7 rounded-full"
+                    disabled={item.cantidadEntregada >= item.cantidadSolicitada}
+                    onClick={() => adjustEntrega(i, 1)}>
+                    <Plus className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+            {itemsEntrega.some(i => i.cantidadEntregada < i.cantidadSolicitada) && (
+              <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
+                ⚠️ Entrega parcial detectada. Se registrará la diferencia en las observaciones del pedido.
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmModalOpen(false)}>Cancelar</Button>
+            <Button onClick={confirmarEntrega} disabled={confirmLoading} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+              {confirmLoading ? 'Registrando...' : 'Confirmar Entrega'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

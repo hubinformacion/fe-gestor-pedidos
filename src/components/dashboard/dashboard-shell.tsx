@@ -5,7 +5,7 @@ import { CatalogoView } from './catalogo-view';
 import { Pedido, Libro } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { LogOut, RefreshCw } from 'lucide-react';
+import { LogOut, RefreshCw, Package, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface DashboardShellProps {
@@ -30,7 +30,6 @@ export function DashboardShell({ token, onLogout }: DashboardShellProps) {
       if (!res.ok) throw new Error('Error al obtener datos');
 
       const data = await res.json();
-      // Reverse array to show newest orders first
       setPedidos((data.pedidos || []).reverse());
       setCatalogo(data.catalogo || []);
     } catch (error) {
@@ -45,39 +44,55 @@ export function DashboardShell({ token, onLogout }: DashboardShellProps) {
   }, [fetchData]);
 
   return (
-    <div className="flex-1 space-y-4 p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-        <div className="flex items-center space-x-2">
+    <div className="flex-1 space-y-6 p-6 md:p-8">
+      {/* Top bar */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Panel de Gestión</h1>
+          <p className="text-sm text-muted-foreground">Fondo Editorial UC</p>
+        </div>
+        <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={fetchData} disabled={isLoading}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`mr-2 h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             Actualizar
           </Button>
-          <Button variant="secondary" size="sm" onClick={onLogout}>
-            <LogOut className="mr-2 h-4 w-4" />
+          <Button variant="ghost" size="sm" onClick={onLogout} className="text-muted-foreground">
+            <LogOut className="mr-2 h-3.5 w-3.5" />
             Salir
           </Button>
         </div>
       </div>
 
-      <Tabs defaultValue="pedidos" className="space-y-4">
+      <Tabs defaultValue="pedidos" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="pedidos">Gestión de Pedidos</TabsTrigger>
-          <TabsTrigger value="catalogo">Catálogo e Inventario</TabsTrigger>
+          <TabsTrigger value="pedidos" className="gap-2">
+            <Package className="h-3.5 w-3.5" /> Pedidos
+          </TabsTrigger>
+          <TabsTrigger value="catalogo" className="gap-2">
+            <BookOpen className="h-3.5 w-3.5" /> Catálogo
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="pedidos" className="space-y-4">
+        <TabsContent value="pedidos" className="space-y-6">
           <MetricCards pedidos={pedidos} catalogo={catalogo} />
           {isLoading ? (
-            <div className="h-[400px] w-full animate-pulse rounded-md bg-muted/50" />
+            <div className="space-y-3">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-14 w-full animate-pulse rounded-lg bg-muted/50" />
+              ))}
+            </div>
           ) : (
             <TablaPedidos pedidos={pedidos} token={token} onRefresh={fetchData} />
           )}
         </TabsContent>
 
-        <TabsContent value="catalogo" className="space-y-4">
+        <TabsContent value="catalogo" className="space-y-6">
           {isLoading ? (
-            <div className="h-[400px] w-full animate-pulse rounded-md bg-muted/50" />
+            <div className="space-y-3">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-14 w-full animate-pulse rounded-lg bg-muted/50" />
+              ))}
+            </div>
           ) : (
             <CatalogoView catalogo={catalogo} token={token} onRefresh={fetchData} />
           )}

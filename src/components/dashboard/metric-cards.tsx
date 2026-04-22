@@ -25,7 +25,7 @@ export function MetricCards({ pedidos, catalogo }: MetricCardsProps) {
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Pedidos</CardTitle>
+          <CardTitle className="text-sm font-medium">Total pedidos</CardTitle>
           <Package className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
@@ -53,7 +53,7 @@ export function MetricCards({ pedidos, catalogo }: MetricCardsProps) {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Stock Crítico</CardTitle>
+          <CardTitle className="text-sm font-medium">Stock crítico</CardTitle>
           <AlertTriangle className="h-4 w-4 text-destructive" />
         </CardHeader>
         <CardContent>
@@ -66,7 +66,7 @@ export function MetricCards({ pedidos, catalogo }: MetricCardsProps) {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Catálogo Activo</CardTitle>
+          <CardTitle className="text-sm font-medium">Catálogo activo</CardTitle>
           <BookOpen className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>

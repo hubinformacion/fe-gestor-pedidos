@@ -64,7 +64,7 @@ export const SEDES = [
 ] as const;
 
 export const RESPONSABLES = [
-  'Julia Falla',
+  'Jullisa Falla',
   'Valeria Trujillo',
   'Yesenia Mandujano',
 ] as const;
