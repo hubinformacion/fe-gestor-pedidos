@@ -16,6 +16,13 @@ function getOAuth2Client() {
   return oauth2Client;
 }
 
+function parsearNumeroSeguro(valor: any): number {
+  if (!valor) return 0;
+  // Convertimos a string, quitamos comas (miles) y letras/símbolos de moneda, dejamos solo números y puntos
+  const limpio = String(valor).replace(/,/g, '').replace(/[^0-9.-]/g, '');
+  return parseFloat(limpio) || 0;
+}
+
 export async function getCatalogo(): Promise<Libro[]> {
   const auth = getOAuth2Client();
   const sheets = google.sheets({ version: 'v4', auth });
@@ -36,9 +43,9 @@ export async function getCatalogo(): Promise<Libro[]> {
       return {
         id: String(r[0] ?? ''),
         titulo: String(r[1] ?? ''),
-        precioNormal: parseFloat(r[2]) || 0,
-        precioCont: parseFloat(r[3]) || 0,
-        stock: parseInt(r[4]) || 0,
+        precioNormal: parsearNumeroSeguro(r[2]),
+        precioCont: parsearNumeroSeguro(r[3]),
+        stock: parsearNumeroSeguro(r[4]),
         estado,
       };
     });
