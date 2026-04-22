@@ -7,7 +7,7 @@ export const itemPedidoSchema = z.object({
 });
 
 export const datosPedidoSchema = z.object({
-  comunidad: z.enum(['si', 'no']),
+  comunidad: z.enum(['Comunidad Continental', 'Público en general']),
   sede: z.string().optional(),
   nombres: z.string().min(1, 'Requerido'),
   apellidos: z.string().min(1, 'Requerido'),
@@ -16,7 +16,7 @@ export const datosPedidoSchema = z.object({
   tipoDoc: z.enum(['DNI', 'Carné de extranjería', 'Pasaporte', 'RUC']),
   nroDoc: z.string().min(1, 'Requerido'),
   libros: z.array(itemPedidoSchema).min(1, 'Selecciona al menos un libro'),
-  tipoEntrega: z.enum(['recojo', 'delivery']),
+  tipoEntrega: z.enum(['Recojo en campus', 'Envío / Delivery']),
   campusRecojo: z.string().optional(),
   direccion: z.string().optional(),
   ciudad: z.string().optional(),
@@ -27,13 +27,13 @@ export const datosPedidoSchema = z.object({
     message: "Debes aceptar la política de tratamiento de datos",
   }),
 }).superRefine((d, ctx) => {
-  if (d.comunidad === 'si' && !d.sede) {
+  if (d.comunidad === 'Comunidad Continental' && !d.sede) {
     ctx.addIssue({ code: 'custom', path: ['sede'], message: 'Selecciona tu sede' });
   }
-  if (d.tipoEntrega === 'recojo' && !d.campusRecojo) {
+  if (d.tipoEntrega === 'Recojo en campus' && !d.campusRecojo) {
     ctx.addIssue({ code: 'custom', path: ['campusRecojo'], message: 'Selecciona el campus de recojo' });
   }
-  if (d.tipoEntrega === 'delivery') {
+  if (d.tipoEntrega === 'Envío / Delivery') {
     if (!d.direccion) ctx.addIssue({ code: 'custom', path: ['direccion'], message: 'Dirección es requerida' });
     if (!d.ciudad) ctx.addIssue({ code: 'custom', path: ['ciudad'], message: 'Ciudad es requerida' });
   }

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { CheckCircle2, Loader2, Minus, Plus, ShoppingCart, AlertCircle, ChevronRight, ChevronLeft } from 'lucide-react';
+import { CheckCircle2, Loader2, Minus, Plus, ShoppingCart, AlertCircle, ChevronRight, ChevronLeft, Search } from 'lucide-react';
 
 import { datosPedidoSchema } from '@/lib/validations';
 import { Libro, SEDES } from '@/lib/types';
@@ -23,6 +23,7 @@ export function FormularioPedido() {
   const [loadingCatalogo, setLoadingCatalogo] = useState(true);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccessCode, setSubmitSuccessCode] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const form = useForm<FormValues>({
     resolver: zodResolver(datosPedidoSchema as any),
@@ -53,12 +54,14 @@ export function FormularioPedido() {
     const fieldsToValidate = steps[currentStep].fields as (keyof FormValues)[];
     const isStepValid = await trigger(fieldsToValidate);
     if (isStepValid) {
+      setSubmitError(null);
       setCurrentStep(prev => Math.min(prev + 1, steps.length - 1));
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   const handlePrev = () => {
+    setSubmitError(null);
     setCurrentStep(prev => Math.max(prev - 1, 0));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -102,19 +105,26 @@ export function FormularioPedido() {
     } catch (e) { setSubmitError('Error de red. Verifica tu conexión.'); }
   };
 
-  const onInvalid = (errors: any) => {
-    // Find which step has the first error and navigate there
-    const errorFields = Object.keys(errors);
-    for (let i = 0; i < steps.length; i++) {
-      const stepFields = steps[i].fields;
-      if (errorFields.some(f => stepFields.includes(f))) {
-        setCurrentStep(i);
-        setSubmitError(`Hay campos pendientes en "${steps[i].title}". Revisa e intenta de nuevo.`);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        return;
+  const handleFinalSubmit = async () => {
+    setSubmitError(null);
+    // Validate ALL fields across ALL steps
+    const isValid = await trigger();
+    if (!isValid) {
+      const errors = form.formState.errors;
+      const errorFields = Object.keys(errors);
+      for (let i = 0; i < steps.length; i++) {
+        if (errorFields.some(f => steps[i].fields.includes(f))) {
+          setCurrentStep(i);
+          setSubmitError(`Hay campos pendientes en "${steps[i].title}".`);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          return;
+        }
       }
+      setSubmitError('Hay campos obligatorios sin completar.');
+      return;
     }
-    setSubmitError('Hay campos obligatorios sin completar.');
+    // If valid, submit
+    handleSubmit(onSubmit)();
   };
 
   const totalCarrito = watchedLibros.reduce((acc, item) => acc + item.precioUnit * item.cantidad, 0);
@@ -163,7 +173,7 @@ export function FormularioPedido() {
       </div>
 
       <Form {...form}>
-        <form onSubmit={handleSubmit(onSubmit, onInvalid)}>
+        <form onSubmit={(e) => e.preventDefault()}>
 
           {/* ── STEP 1: Publicaciones ── */}
           <div className={currentStep === 0 ? "block step-animate" : "hidden"}>
@@ -184,8 +194,23 @@ export function FormularioPedido() {
                     <p className="text-muted-foreground text-sm">No se encontraron libros disponibles.</p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-border max-h-[420px] overflow-y-auto">
-                    {catalogo.map((libro) => {
+                  <>
+                    <div className="p-3 border-b">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="text"
+                          placeholder="Buscar por título..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-9 h-9 border-0 bg-muted/40 focus-visible:ring-1"
+                        />
+                      </div>
+                    </div>
+                    <div className="divide-y divide-border max-h-[380px] overflow-y-auto">
+                    {catalogo
+                      .filter(libro => libro.titulo.toLowerCase().includes(searchQuery.toLowerCase()))
+                      .map((libro) => {
                       const enCarrito = watchedLibros.find(l => l.titulo === libro.titulo);
                       const cant = enCarrito?.cantidad || 0;
                       const agotado = libro.stock <= 0;
@@ -213,7 +238,11 @@ export function FormularioPedido() {
                         </div>
                       );
                     })}
-                  </div>
+                    {catalogo.filter(libro => libro.titulo.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+                      <div className="p-8 text-center text-sm text-muted-foreground">No se encontraron resultados para "{searchQuery}"</div>
+                    )}
+                    </div>
+                  </>
                 )}
                 {form.formState.errors.libros && (
                   <div className="px-4 py-3 bg-destructive/10 text-destructive text-sm font-medium border-t border-destructive/20">{form.formState.errors.libros.message}</div>
@@ -247,14 +276,14 @@ export function FormularioPedido() {
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl><SelectTrigger><SelectValue placeholder="Selecciona tu vínculo" /></SelectTrigger></FormControl>
                       <SelectContent>
-                        <SelectItem value="si">Soy estudiante / docente / colaborador</SelectItem>
-                        <SelectItem value="no">Público en general</SelectItem>
+                        <SelectItem value="Comunidad Continental">Comunidad Continental</SelectItem>
+                        <SelectItem value="Público en general">Público en general</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
                 )} />
-                {watchedComunidad === 'si' && (
+                {watchedComunidad === 'Comunidad Continental' && (
                   <FormField control={form.control} name="sede" render={({ field }) => (
                     <FormItem className="step-animate">
                       <FormLabel>Sede de procedencia</FormLabel>
@@ -281,7 +310,7 @@ export function FormularioPedido() {
                     <FormItem>
                       <FormLabel>Correo electrónico</FormLabel>
                       <FormControl><Input type="email" placeholder="correo@ejemplo.com" {...field} /></FormControl>
-                      <FormDescription className="text-xs">{watchedComunidad === 'si' ? 'Sugerimos usar tu correo @continental.edu.pe.' : 'Para enviarte la confirmación del pedido.'}</FormDescription>
+                      <FormDescription className="text-xs">{watchedComunidad === 'Comunidad Continental' ? 'Sugerimos usar tu correo @continental.edu.pe.' : 'Para enviarte la confirmación del pedido.'}</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -325,14 +354,14 @@ export function FormularioPedido() {
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl><SelectTrigger><SelectValue placeholder="Selecciona..." /></SelectTrigger></FormControl>
                       <SelectContent>
-                        <SelectItem value="recojo">Recojo en Campus</SelectItem>
-                        <SelectItem value="delivery">Envío / Delivery</SelectItem>
+                        <SelectItem value="Recojo en campus">Recojo en campus</SelectItem>
+                        <SelectItem value="Envío / Delivery">Envío / Delivery</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
                 )} />
-                {watchedEntrega === 'recojo' && (
+                {watchedEntrega === 'Recojo en campus' && (
                   <FormField control={form.control} name="campusRecojo" render={({ field }) => (
                     <FormItem className="step-animate">
                       <FormLabel>Campus de recojo</FormLabel>
@@ -345,7 +374,7 @@ export function FormularioPedido() {
                   )} />
                 )}
               </div>
-              {watchedEntrega === 'delivery' && (
+              {watchedEntrega === 'Envío / Delivery' && (
                 <div className="grid gap-5 md:grid-cols-2 step-animate border-t pt-5">
                   <FormField control={form.control} name="direccion" render={({ field }) => (
                     <FormItem><FormLabel>Dirección exacta de entrega</FormLabel><FormControl><Input placeholder="Av. / Calle / Jr. Nro, Distrito" {...field} /></FormControl><FormMessage /></FormItem>
@@ -427,7 +456,7 @@ export function FormularioPedido() {
                 Siguiente <ChevronRight className="ml-1 h-4 w-4" />
               </Button>
             ) : (
-              <Button type="submit" disabled={isSubmitting || loadingCatalogo} size="lg" className="min-w-[200px]">
+              <Button type="button" onClick={handleFinalSubmit} disabled={isSubmitting || loadingCatalogo} size="lg" className="min-w-[200px]">
                 {isSubmitting ? (
                   <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Procesando...</>
                 ) : (

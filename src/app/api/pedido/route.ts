@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     
     // Obtener catálogo directo de Sheets para evitar manipulación de precios desde Frontend
     const catalogo = await getCatalogo();
-    const esCont = data.comunidad === 'si';
+    const esCont = data.comunidad === 'Comunidad Continental';
     
     // Validar precios y calcular total general de manera segura
     const librosSeguros = data.libros.map(itemFront => {

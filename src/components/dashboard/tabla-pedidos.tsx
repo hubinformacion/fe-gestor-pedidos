@@ -325,83 +325,86 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
 
       {/* ── Detail Modal (expanded) ── */}
       <Dialog open={viewModalOpen} onOpenChange={setViewModalOpen}>
-        <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto p-0">
+        <DialogContent className="max-w-5xl w-[96vw] max-h-[90vh] overflow-y-auto p-0">
           {selectedPedido && (
             <>
               {/* Modal header */}
-              <div className="sticky top-0 z-10 bg-card border-b px-6 py-4 flex items-center justify-between">
+              <div className="sticky top-0 z-10 bg-card border-b px-8 py-5 flex items-center justify-between">
                 <div>
-                  <DialogTitle className="text-xl font-bold">Pedido {selectedPedido.codigo}</DialogTitle>
-                  <DialogDescription className="text-sm text-muted-foreground mt-0.5">
+                  <DialogTitle className="text-2xl font-bold">Pedido {selectedPedido.codigo}</DialogTitle>
+                  <DialogDescription className="text-sm text-muted-foreground mt-1">
                     {selectedPedido.fecha} · {selectedPedido.tipo}{selectedPedido.sede ? ` · ${selectedPedido.sede}` : ''}
                   </DialogDescription>
                 </div>
-                <Badge className={`text-xs px-3 py-1 border ${getStatusStyle(selectedPedido.estado)}`} variant="outline">
+                <Badge className={`text-sm px-4 py-1.5 border ${getStatusStyle(selectedPedido.estado)}`} variant="outline">
                   {selectedPedido.estado}
                 </Badge>
               </div>
 
-              <div className="p-6 space-y-6">
-                {/* Client info */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="space-y-3">
+              <div className="p-8 space-y-8">
+                {/* Info grid: 3 columns */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  {/* Client */}
+                  <div className="space-y-4">
                     <h4 className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-2">
                       <User className="w-3.5 h-3.5" /> Datos del cliente
                     </h4>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex gap-2">
-                        <span className="text-muted-foreground min-w-[80px]">Nombre</span>
-                        <span className="font-medium">{selectedPedido.nombre}</span>
+                    <div className="space-y-3 text-sm">
+                      <div>
+                        <span className="text-muted-foreground text-xs block mb-0.5">Nombre completo</span>
+                        <span className="font-medium text-base">{selectedPedido.nombre}</span>
                       </div>
-                      <div className="flex gap-2">
-                        <span className="text-muted-foreground min-w-[80px]">Documento</span>
+                      <div>
+                        <span className="text-muted-foreground text-xs block mb-0.5">Documento</span>
                         <span>{selectedPedido.tipoDoc} {selectedPedido.nroDoc}</span>
                       </div>
-                      <div className="flex gap-2 items-center">
-                        <Mail className="w-3.5 h-3.5 text-muted-foreground" />
-                        <span className="text-sm">{selectedPedido.email}</span>
+                      <div className="flex items-center gap-2 pt-1">
+                        <Mail className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        <span className="text-sm break-all">{selectedPedido.email}</span>
                       </div>
-                      <div className="flex gap-2 items-center">
-                        <Phone className="w-3.5 h-3.5 text-muted-foreground" />
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                         <span className="text-sm">{selectedPedido.telefono}</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-3">
+                  {/* Delivery */}
+                  <div className="space-y-4">
                     <h4 className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-2">
                       <MapPin className="w-3.5 h-3.5" /> Entrega
                     </h4>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex gap-2">
-                        <span className="text-muted-foreground min-w-[80px]">Modalidad</span>
-                        <span className="font-medium capitalize">{selectedPedido.tipoEntrega}</span>
+                    <div className="space-y-3 text-sm">
+                      <div>
+                        <span className="text-muted-foreground text-xs block mb-0.5">Modalidad</span>
+                        <span className="font-medium">{selectedPedido.tipoEntrega}</span>
                       </div>
-                      <div className="flex gap-2">
-                        <span className="text-muted-foreground min-w-[80px]">Detalle</span>
+                      <div>
+                        <span className="text-muted-foreground text-xs block mb-0.5">Detalle</span>
                         <span>{selectedPedido.detalleEntrega || '—'}</span>
                       </div>
                     </div>
+                  </div>
 
-                    <Separator className="my-3" />
-
+                  {/* SLA */}
+                  <div className="space-y-4">
                     <h4 className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-2">
                       <Clock className="w-3.5 h-3.5" /> Atención (SLA)
                     </h4>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex gap-2">
-                        <span className="text-muted-foreground min-w-[80px]">Responsable</span>
+                    <div className="space-y-3 text-sm">
+                      <div>
+                        <span className="text-muted-foreground text-xs block mb-0.5">Responsable</span>
                         <span className="font-medium">{selectedPedido.atendidoPor || '—'}</span>
                       </div>
-                      <div className="flex gap-2">
-                        <span className="text-muted-foreground min-w-[80px]">Inicio</span>
+                      <div>
+                        <span className="text-muted-foreground text-xs block mb-0.5">Inicio</span>
                         <span>{selectedPedido.fechaInicioAtencion || '—'}</span>
                       </div>
-                      <div className="flex gap-2">
-                        <span className="text-muted-foreground min-w-[80px]">Fin</span>
+                      <div>
+                        <span className="text-muted-foreground text-xs block mb-0.5">Fin</span>
                         <span>{selectedPedido.fechaFinAtencion || '—'}</span>
                       </div>
-                      <div className="flex gap-2 items-center text-primary font-medium">
+                      <div className="flex items-center gap-2 text-primary font-medium pt-1">
                         <Clock className="w-3.5 h-3.5" />
                         <span>{getSLADisplay(selectedPedido.fechaInicioAtencion, selectedPedido.fechaFinAtencion)}</span>
                       </div>
@@ -412,18 +415,18 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
                 <Separator />
 
                 {/* Books */}
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <h4 className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-2">
                     <Package className="w-3.5 h-3.5" /> Libros solicitados ({selectedPedido.cantidad} items)
                   </h4>
                   <div className="border rounded-lg overflow-hidden">
                     {parseLibros(selectedPedido.libros).map((item, i) => (
-                      <div key={i} className="flex items-center justify-between px-4 py-3 border-b last:border-0 text-sm">
-                        <span className="font-medium">{item.titulo}</span>
-                        <span className="text-muted-foreground font-mono">×{item.cantidad}</span>
+                      <div key={i} className="flex items-center justify-between px-5 py-3.5 border-b last:border-0 text-sm">
+                        <span className="font-medium flex-1">{item.titulo}</span>
+                        <span className="text-muted-foreground font-mono ml-4 shrink-0">×{item.cantidad}</span>
                       </div>
                     ))}
-                    <div className="flex justify-between items-center px-4 py-3 bg-muted/30 font-bold">
+                    <div className="flex justify-between items-center px-5 py-4 bg-muted/30 font-bold">
                       <span>Total</span>
                       <span className="text-lg text-primary">{selectedPedido.total}</span>
                     </div>
@@ -432,9 +435,9 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
 
                 {/* Observations */}
                 {selectedPedido.observaciones && (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <h4 className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Observaciones</h4>
-                    <p className="text-sm bg-muted/30 rounded-lg p-4 text-muted-foreground leading-relaxed">
+                    <p className="text-sm bg-muted/30 rounded-lg p-5 text-muted-foreground leading-relaxed whitespace-pre-wrap">
                       {selectedPedido.observaciones}
                     </p>
                   </div>

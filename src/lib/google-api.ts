@@ -94,7 +94,10 @@ export async function getNumeroPedido(): Promise<number> {
     range: `Pedidos!A:A`,
   });
   
-  return Math.max((res.data.values?.length || 1) - 1, 1);
+  const totalRows = res.data.values?.length || 1;
+  // totalRows includes header. If header + 1 data row = 2, next ID should be 2.
+  // So next ID = totalRows (which counts header as 1, so data rows = totalRows - 1, next = totalRows).
+  return Math.max(totalRows, 1);
 }
 
 export async function guardarPedido(
@@ -106,11 +109,11 @@ export async function guardarPedido(
   const sheets = google.sheets({ version: 'v4', auth });
   const ssId = process.env.GOOGLE_SPREADSHEET_ID!;
   
-  const esCont = data.comunidad === 'si';
+  const esCont = data.comunidad === 'Comunidad Continental';
   const marca = obtenerMarcaTemporalActual();
   const librosStr = data.libros.map(i => `${i.titulo} x${i.cantidad}`).join(' | ');
   const cantTotal = data.libros.reduce((s, i) => s + i.cantidad, 0);
-  const entregaDetalle = data.tipoEntrega === 'delivery'
+  const entregaDetalle = data.tipoEntrega === 'Envío / Delivery'
     ? `${data.direccion}, ${data.ciudad}`
     : data.campusRecojo || '';
 
@@ -162,12 +165,12 @@ export async function enviarCorreoAPI(params: {
     telefono: data.telefono,
     tipoDoc: data.tipoDoc,
     nroDoc: data.nroDoc,
-    comunidad: data.comunidad === 'si'
+    comunidad: data.comunidad === 'Comunidad Continental'
       ? `Comunidad Continental${data.sede ? ' — ' + data.sede : ''}`
       : 'Público externo',
     items: data.libros,
     totalGeneral: totalGeneral.toFixed(2),
-    tipoEntrega: data.tipoEntrega === 'recojo'
+    tipoEntrega: data.tipoEntrega === 'Recojo en campus'
       ? `Recojo en ${data.campusRecojo}`
       : `Delivery a ${data.direccion}, ${data.ciudad}`,
     marcaTemporal: marca,
@@ -180,6 +183,7 @@ export async function enviarCorreoAPI(params: {
   const subjectStr = Buffer.from(asunto).toString('base64');
   
   const messageParts = [
+    `From: Fondo Editorial <fondoeditorial@continental.edu.pe>`,
     `To: ${data.email}`,
     `Cc: ${ccList}`,
     'Content-Type: text/html; charset=utf-8',

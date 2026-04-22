@@ -14,7 +14,7 @@ export interface ItemPedido {
 }
 
 export interface DatosPedido {
-  comunidad: 'si' | 'no';
+  comunidad: 'Comunidad Continental' | 'Público en general';
   sede?: string;
   nombres: string;
   apellidos: string;
@@ -23,7 +23,7 @@ export interface DatosPedido {
   tipoDoc: 'DNI' | 'Carné de extranjería' | 'Pasaporte' | 'RUC';
   nroDoc: string;
   libros: ItemPedido[];
-  tipoEntrega: 'recojo' | 'delivery';
+  tipoEntrega: 'Recojo en campus' | 'Envío / Delivery';
   campusRecojo?: string;
   direccion?: string;
   ciudad?: string;
