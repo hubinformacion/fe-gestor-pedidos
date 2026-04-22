@@ -27,7 +27,7 @@ export function FormularioPedido() {
   const [submitSuccessCode, setSubmitSuccessCode] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(datosPedidoSchema),
+    resolver: zodResolver(datosPedidoSchema as any),
     defaultValues: {
       comunidad: undefined,
       sede: '',
@@ -187,7 +187,7 @@ export function FormularioPedido() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Vínculo con la universidad</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecciona tu vínculo" />
@@ -210,7 +210,7 @@ export function FormularioPedido() {
                   render={({ field }) => (
                     <FormItem className="animate-in fade-in slide-in-from-top-2">
                       <FormLabel>Sede de procedencia</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Elige tu sede" />
@@ -276,7 +276,7 @@ export function FormularioPedido() {
               <FormField control={form.control} name="tipoDoc" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Tipo de Documento</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Selecciona" /></SelectTrigger></FormControl>
                     <SelectContent>
                       <SelectItem value="DNI">DNI</SelectItem>
@@ -406,7 +406,7 @@ export function FormularioPedido() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Tipo de entrega</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl><SelectTrigger><SelectValue placeholder="Selecciona..." /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value="recojo">Recojo en Campus</SelectItem>
@@ -425,7 +425,7 @@ export function FormularioPedido() {
                   render={({ field }) => (
                     <FormItem className="animate-in fade-in slide-in-from-top-2">
                       <FormLabel>Campus de recojo</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Selecciona campus" /></SelectTrigger></FormControl>
                         <SelectContent>
                           {SEDES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}

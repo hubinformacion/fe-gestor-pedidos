@@ -28,14 +28,18 @@ export async function getCatalogo(): Promise<Libro[]> {
   return (res.data.values || [])
     .filter(r => r[0] || r[1])
     .map(r => {
-      const estadoStr = r[5] ? String(r[5]).trim() : 'Activo'; // Si dejan la celda vacía, por defecto es Activo para no confundir.
+      // Soportar celdas Checkbox (TRUE/FALSE) o texto libre ("Activo", "Inactivo")
+      const rawEstado = r[5] ? String(r[5]).trim().toUpperCase() : 'TRUE';
+      const isActive = rawEstado === 'TRUE' || rawEstado === 'VERDADERO' || rawEstado === 'ACTIVO';
+      const estado = isActive ? 'Activo' : 'Inactivo';
+      
       return {
         id: String(r[0] ?? ''),
         titulo: String(r[1] ?? ''),
         precioNormal: parseFloat(r[2]) || 0,
         precioCont: parseFloat(r[3]) || 0,
         stock: parseInt(r[4]) || 0,
-        estado: (estadoStr as 'Activo' | 'Inactivo'),
+        estado,
       };
     });
 }
@@ -306,13 +310,17 @@ export async function guardarLibro(libro: Partial<Libro>): Promise<void> {
       const precioNormal = libro.precioNormal ?? currentRow[2];
       const precioCont = libro.precioCont ?? currentRow[3];
       const stock = libro.stock ?? currentRow[4];
-      const estado = libro.estado ?? currentRow[5];
+      
+      let estadoGuardado = currentRow[5];
+      if (libro.estado) {
+        estadoGuardado = libro.estado === 'Inactivo' ? 'FALSE' : 'TRUE';
+      }
 
       await sheets.spreadsheets.values.update({
         spreadsheetId: ssId,
         range: `items!B${idx + 1}:F${idx + 1}`, // Columnas B a F
         valueInputOption: 'RAW',
-        requestBody: { values: [[titulo, precioNormal, precioCont, stock, estado]] },
+        requestBody: { values: [[titulo, precioNormal, precioCont, stock, estadoGuardado]] },
       });
       return;
     }
@@ -320,13 +328,17 @@ export async function guardarLibro(libro: Partial<Libro>): Promise<void> {
 
   // Si no hay ID o no se encontró, insertamos nueva fila al final
   const newId = libro.id || Date.now().toString(); // Fallback para ID
+  
+  // Guardar como booleano (TRUE/FALSE) para que la celda checkbox en sheets funcione
+  const estadoGuardado = libro.estado === 'Inactivo' ? 'FALSE' : 'TRUE';
+  
   const fila = [
     newId,
     libro.titulo || 'Sin título',
     libro.precioNormal || 0,
     libro.precioCont || 0,
     libro.stock || 0,
-    libro.estado || 'Inactivo'
+    estadoGuardado
   ];
 
   await sheets.spreadsheets.values.append({
