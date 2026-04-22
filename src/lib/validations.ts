@@ -20,6 +20,12 @@ export const datosPedidoSchema = z.object({
   campusRecojo: z.string().optional(),
   direccion: z.string().optional(),
   ciudad: z.string().optional(),
+  terminos1: z.boolean().refine(val => val === true, {
+    message: "Debes aceptar la política de privacidad",
+  }),
+  terminos2: z.boolean().refine(val => val === true, {
+    message: "Debes aceptar la política de tratamiento de datos",
+  }),
 }).superRefine((d, ctx) => {
   if (d.comunidad === 'si' && !d.sede) {
     ctx.addIssue({ code: 'custom', path: ['sede'], message: 'Selecciona tu sede' });

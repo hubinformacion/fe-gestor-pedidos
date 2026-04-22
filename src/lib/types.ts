@@ -27,6 +27,8 @@ export interface DatosPedido {
   campusRecojo?: string;
   direccion?: string;
   ciudad?: string;
+  terminos1: boolean;
+  terminos2: boolean;
 }
 
 export type EstadoPedido = 'Pendiente' | 'Pagado' | 'Entregado' | 'Cancelado';
