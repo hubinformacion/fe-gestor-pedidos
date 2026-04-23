@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { actualizarEstadoPedido } from '@/lib/google-api';
+import { ESTADOS_FINALES } from '@/lib/types';
 
 export async function PATCH(req: NextRequest) {
   const token = req.nextUrl.searchParams.get('token');
@@ -10,12 +11,12 @@ export async function PATCH(req: NextRequest) {
   try {
     const { codigo, estado, observaciones, atendidoPor } = await req.json();
     
-    // Reglas de negocio para las fechas
-    // 1. Si de repente alguien se asigna el pedido y cambia de Pendiente -> Fecha Inicio
-    // 2. Si pasa a finalizado (Entregado/Cancelado) -> Fecha Fin
+    // Reglas de negocio para las fechas:
+    // 1. Si se asigna un responsable → Fecha Inicio (siempre que haya atendidoPor)
+    // 2. Si pasa a estado final (Entregado/Abandonado/Anulado) → Fecha Fin
     
-    const setInicio = !!atendidoPor && estado !== 'Pendiente';
-    const setFin = estado === 'Entregado' || estado === 'Cancelado';
+    const setInicio = !!atendidoPor;
+    const setFin = ESTADOS_FINALES.includes(estado);
     
     await actualizarEstadoPedido(codigo, {
       estado,

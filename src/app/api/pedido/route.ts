@@ -7,6 +7,7 @@ import {
   getCatalogo
 } from '@/lib/google-api';
 import { datosPedidoSchema } from '@/lib/validations';
+import { determinarTipoCorreo, DELIVERY_PRECIO_LIMA, DELIVERY_PRECIO_PROVINCIA } from '@/lib/types';
 
 export async function POST(req: NextRequest) {
   try {
@@ -30,7 +31,21 @@ export async function POST(req: NextRequest) {
 
     // Reemplazar la data insegura con la que acabamos de recalcular en backend
     data.libros = librosSeguros;
-    const totalGeneral = librosSeguros.reduce((s, i) => s + (i.precioUnit * i.cantidad), 0);
+    const subtotalLibros = librosSeguros.reduce((s, i) => s + (i.precioUnit * i.cantidad), 0);
+
+    // Calcular costo de delivery
+    const costoDelivery = data.tipoEntrega === 'Envío / Delivery'
+      ? (data.zonaDelivery === 'Provincia' ? DELIVERY_PRECIO_PROVINCIA : DELIVERY_PRECIO_LIMA)
+      : 0;
+
+    const totalGeneral = subtotalLibros + costoDelivery;
+
+    // Determinar tipo de correo según unidades de negocio de los libros
+    const unidadesDelPedido = librosSeguros.map(item => {
+      const libro = catalogo.find(l => l.titulo === item.titulo);
+      return libro?.unidadNegocio || 'Universidad Continental';
+    });
+    const tipoCorreo = determinarTipoCorreo(unidadesDelPedido);
 
     // Obtener y formatear el código de pedido N-AÑO
     const numPedido = await getNumeroPedido();
@@ -40,7 +55,7 @@ export async function POST(req: NextRequest) {
     await Promise.all([
       guardarPedido(data, codigoPedido, totalGeneral),
       descontarStock(data.libros),
-      enviarCorreoAPI({ codigoPedido, totalGeneral, data }),
+      enviarCorreoAPI({ codigoPedido, totalGeneral, costoDelivery, data, tipoCorreo }),
     ]);
 
     return NextResponse.json({ ok: true, codigo: codigoPedido });

@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package, DollarSign, AlertTriangle, BookOpen } from "lucide-react";
-import { Pedido, Libro } from "@/lib/types";
+import { Pedido, Libro, ESTADOS_FINALES } from "@/lib/types";
 
 interface MetricCardsProps {
   pedidos: Pedido[];

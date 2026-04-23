@@ -1,5 +1,7 @@
 import { google } from 'googleapis';
-import { DatosPedido, EstadoPedido, ItemPedido, Libro, Pedido } from './types';
+import * as fs from 'fs';
+import * as path from 'path';
+import { DatosPedido, EstadoPedido, ItemPedido, Libro, Pedido, TipoCorreo, DELIVERY_PRECIO_LIMA, DELIVERY_PRECIO_PROVINCIA } from './types';
 import { generarEmailHTML } from './email-template';
 import { obtenerMarcaTemporalActual } from './date-utils';
 
@@ -29,7 +31,7 @@ export async function getCatalogo(): Promise<Libro[]> {
   
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: process.env.GOOGLE_SPREADSHEET_ID!,
-    range: 'items!A2:F',
+    range: 'items!A2:G',
   });
 
   return (res.data.values || [])
@@ -40,6 +42,15 @@ export async function getCatalogo(): Promise<Libro[]> {
       const isActive = rawEstado === 'TRUE' || rawEstado === 'VERDADERO' || rawEstado === 'ACTIVO';
       const estado = isActive ? 'Activo' : 'Inactivo';
       
+      // Unidad de negocio (columna G)
+      const rawUnidad = r[6] ? String(r[6]).trim() : 'Universidad Continental';
+      const unidadMap: Record<string, Libro['unidadNegocio']> = {
+        'universidad continental': 'Universidad Continental',
+        'instituto continental': 'Instituto Continental',
+        'posgrado': 'Posgrado',
+      };
+      const unidadNegocio = unidadMap[rawUnidad.toLowerCase()] || 'Universidad Continental';
+
       return {
         id: String(r[0] ?? ''),
         titulo: String(r[1] ?? ''),
@@ -47,6 +58,7 @@ export async function getCatalogo(): Promise<Libro[]> {
         precioCont: parsearNumeroSeguro(r[3]),
         stock: parsearNumeroSeguro(r[4]),
         estado,
+        unidadNegocio,
       };
     });
 }
@@ -58,7 +70,7 @@ export async function descontarStock(items: ItemPedido[]): Promise<void> {
   
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: ssId,
-    range: 'items!A2:F',
+    range: 'items!A2:G',
   });
   
   const rows = res.data.values || [];
@@ -95,8 +107,6 @@ export async function getNumeroPedido(): Promise<number> {
   });
   
   const totalRows = res.data.values?.length || 1;
-  // totalRows includes header. If header + 1 data row = 2, next ID should be 2.
-  // So next ID = totalRows (which counts header as 1, so data rows = totalRows - 1, next = totalRows).
   return Math.max(totalRows, 1);
 }
 
@@ -113,9 +123,16 @@ export async function guardarPedido(
   const marca = obtenerMarcaTemporalActual();
   const librosStr = data.libros.map(i => `${i.titulo} x${i.cantidad}`).join(' | ');
   const cantTotal = data.libros.reduce((s, i) => s + i.cantidad, 0);
+  
+  // Detalle de entrega
   const entregaDetalle = data.tipoEntrega === 'Envío / Delivery'
-    ? `${data.direccion}, ${data.ciudad}`
+    ? `${data.direccion}, ${data.zonaDelivery === 'Provincia' ? data.departamento : 'Lima/Callao'}`
     : data.campusRecojo || '';
+
+  // Receptor info
+  const receptorStr = data.receptorTipo === 'Otra persona'
+    ? `${data.receptorNombre} (${data.receptorDocumento})`
+    : data.receptorTipo || '';
 
   const fila = [
     marca, // A: Marca temporal
@@ -136,12 +153,15 @@ export async function guardarPedido(
     'Pendiente', // P: Estado
     '', // Q: Atendido por
     '', // R: Fecha inicio atencion
-    ''  // S: Fecha fin atencion
+    '', // S: Fecha fin atencion
+    data.zonaDelivery || '', // T: Zona Delivery
+    data.referenciaDelivery || '', // U: Referencia dirección
+    receptorStr, // V: Receptor
   ];
 
   await sheets.spreadsheets.values.append({
     spreadsheetId: ssId,
-    range: `Pedidos!A:S`,
+    range: `Pedidos!A:V`,
     valueInputOption: 'RAW',
     requestBody: { values: [fila] },
   });
@@ -150,13 +170,16 @@ export async function guardarPedido(
 export async function enviarCorreoAPI(params: {
   codigoPedido: string;
   totalGeneral: number;
+  costoDelivery: number;
   data: DatosPedido;
+  tipoCorreo: TipoCorreo;
 }) {
   const auth = getOAuth2Client();
   const gmail = google.gmail({ version: 'v1', auth });
 
-  const { codigoPedido, totalGeneral, data } = params;
+  const { codigoPedido, totalGeneral, costoDelivery, data, tipoCorreo } = params;
   const marca = obtenerMarcaTemporalActual();
+  const subtotalLibros = (totalGeneral - costoDelivery).toFixed(2);
   
   const htmlBody = generarEmailHTML({
     codigoPedido,
@@ -170,30 +193,88 @@ export async function enviarCorreoAPI(params: {
       : 'Público externo',
     items: data.libros,
     totalGeneral: totalGeneral.toFixed(2),
-    tipoEntrega: data.tipoEntrega === 'Recojo en campus'
-      ? `Recojo en ${data.campusRecojo}`
-      : `Delivery a ${data.direccion}, ${data.ciudad}`,
+    subtotalLibros,
+    tipoEntrega: data.tipoEntrega,
+    campusRecojo: data.tipoEntrega === 'Recojo en campus' ? data.campusRecojo : undefined,
+    direccionDelivery: data.tipoEntrega === 'Envío / Delivery'
+      ? `${data.direccion}, ${data.zonaDelivery === 'Provincia' ? data.departamento : 'Lima/Callao'}`
+      : undefined,
+    zonaDelivery: data.zonaDelivery,
+    costoDelivery,
+    referenciaDelivery: data.referenciaDelivery,
+    receptorInfo: data.receptorTipo === 'Otra persona'
+      ? `${data.receptorNombre} (${data.receptorDocumento})`
+      : data.receptorTipo === 'Yo mismo(a)' ? 'El/La comprador(a)' : undefined,
     marcaTemporal: marca,
+    tipoCorreo,
   });
 
   const asunto = `[Pedido N.° ${codigoPedido}] ${data.nombres} ${data.apellidos}`;
   const ccList = process.env.EMAIL_CC || '';
 
-  // Construir mensaje MIME RFC 2822
-  const subjectStr = Buffer.from(asunto).toString('base64');
-  
-  const messageParts = [
-    `From: Fondo Editorial <fondoeditorial@continental.edu.pe>`,
-    `To: ${data.email}`,
-    `Cc: ${ccList}`,
-    'Content-Type: text/html; charset=utf-8',
-    'MIME-Version: 1.0',
-    `Subject: =?utf-8?B?${subjectStr}?=`,
-    '',
-    htmlBody,
-  ];
+  // ── Determinar PDF a adjuntar (solo si no es mixto) ──
+  let pdfBuffer: Buffer | null = null;
+  let pdfFilename = '';
+  if (tipoCorreo !== 'mixto') {
+    pdfFilename = tipoCorreo === 'instituto'
+      ? 'guia-pago-instituto.pdf'
+      : 'guia-pago-universidad.pdf';
+    const pdfPath = path.join(process.cwd(), 'public', 'docs', pdfFilename);
+    try {
+      pdfBuffer = fs.readFileSync(pdfPath);
+    } catch {
+      // PDF no encontrado — enviar sin adjunto
+      console.warn(`PDF no encontrado: ${pdfPath}. Se enviará sin adjunto.`);
+      pdfBuffer = null;
+    }
+  }
 
-  const message = messageParts.join('\n');
+  // ── Construir mensaje MIME ──
+  const subjectB64 = Buffer.from(asunto).toString('base64');
+  const boundary = `boundary_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+  let message: string;
+
+  if (pdfBuffer) {
+    // Multipart con adjunto
+    const pdfBase64 = pdfBuffer.toString('base64');
+    message = [
+      `From: Fondo Editorial <fondoeditorial@continental.edu.pe>`,
+      `To: ${data.email}`,
+      `Cc: ${ccList}`,
+      `Subject: =?utf-8?B?${subjectB64}?=`,
+      'MIME-Version: 1.0',
+      `Content-Type: multipart/mixed; boundary="${boundary}"`,
+      '',
+      `--${boundary}`,
+      'Content-Type: text/html; charset=utf-8',
+      'Content-Transfer-Encoding: base64',
+      '',
+      Buffer.from(htmlBody).toString('base64'),
+      '',
+      `--${boundary}`,
+      `Content-Type: application/pdf; name="${pdfFilename}"`,
+      `Content-Disposition: attachment; filename="${pdfFilename}"`,
+      'Content-Transfer-Encoding: base64',
+      '',
+      pdfBase64,
+      '',
+      `--${boundary}--`,
+    ].join('\n');
+  } else {
+    // Sin adjunto
+    message = [
+      `From: Fondo Editorial <fondoeditorial@continental.edu.pe>`,
+      `To: ${data.email}`,
+      `Cc: ${ccList}`,
+      'Content-Type: text/html; charset=utf-8',
+      'MIME-Version: 1.0',
+      `Subject: =?utf-8?B?${subjectB64}?=`,
+      '',
+      htmlBody,
+    ].join('\n');
+  }
+
   const encodedMessage = Buffer.from(message)
     .toString('base64')
     .replace(/\+/g, '-')
@@ -216,7 +297,7 @@ export async function getTodosPedidos(): Promise<Pedido[]> {
   
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: process.env.GOOGLE_SPREADSHEET_ID!,
-    range: 'Pedidos!A2:S',
+    range: 'Pedidos!A2:V',
   });
 
   return (res.data.values || [])
@@ -241,6 +322,9 @@ export async function getTodosPedidos(): Promise<Pedido[]> {
       atendidoPor: r[16] || '',
       fechaInicioAtencion: r[17] || '',
       fechaFinAtencion: r[18] || '',
+      zonaDelivery: r[19] || '',
+      referenciaDelivery: r[20] || '',
+      receptor: r[21] || '',
     }));
 }
 
@@ -261,7 +345,7 @@ export async function actualizarEstadoPedido(
   // 1. Obtener toda la tabla para encontrar la fila
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: ssId,
-    range: 'Pedidos!A:S',
+    range: 'Pedidos!A:V',
   });
   
   const rows = res.data.values || [];
@@ -307,7 +391,7 @@ export async function guardarLibro(libro: Partial<Libro>): Promise<void> {
 
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: ssId,
-    range: 'items!A:F',
+    range: 'items!A:G',
   });
   
   const rows = res.data.values || [];
@@ -321,6 +405,7 @@ export async function guardarLibro(libro: Partial<Libro>): Promise<void> {
       const precioNormal = libro.precioNormal ?? currentRow[2];
       const precioCont = libro.precioCont ?? currentRow[3];
       const stock = libro.stock ?? currentRow[4];
+      const unidadNegocio = libro.unidadNegocio ?? currentRow[6] ?? 'Universidad Continental';
       
       let estadoGuardado = currentRow[5];
       if (libro.estado) {
@@ -329,9 +414,9 @@ export async function guardarLibro(libro: Partial<Libro>): Promise<void> {
 
       await sheets.spreadsheets.values.update({
         spreadsheetId: ssId,
-        range: `items!B${idx + 1}:F${idx + 1}`, // Columnas B a F
+        range: `items!B${idx + 1}:G${idx + 1}`, // Columnas B a G
         valueInputOption: 'RAW',
-        requestBody: { values: [[titulo, precioNormal, precioCont, stock, estadoGuardado]] },
+        requestBody: { values: [[titulo, precioNormal, precioCont, stock, estadoGuardado, unidadNegocio]] },
       });
       return;
     }
@@ -349,12 +434,13 @@ export async function guardarLibro(libro: Partial<Libro>): Promise<void> {
     libro.precioNormal || 0,
     libro.precioCont || 0,
     libro.stock || 0,
-    estadoGuardado
+    estadoGuardado,
+    libro.unidadNegocio || 'Universidad Continental',
   ];
 
   await sheets.spreadsheets.values.append({
     spreadsheetId: ssId,
-    range: 'items!A:F',
+    range: 'items!A:G',
     valueInputOption: 'RAW',
     requestBody: { values: [fila] },
   });

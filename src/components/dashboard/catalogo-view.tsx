@@ -30,7 +30,7 @@ export function CatalogoView({ catalogo, token, onRefresh }: CatalogoViewProps) 
     if (libro) {
       setEditingLibro({ ...libro });
     } else {
-      setEditingLibro({ titulo: '', precioNormal: 0, precioCont: 0, stock: 0, estado: 'Activo' });
+      setEditingLibro({ titulo: '', precioNormal: 0, precioCont: 0, stock: 0, estado: 'Activo', unidadNegocio: 'Universidad Continental' });
     }
     setIsModalOpen(true);
   };
@@ -100,6 +100,7 @@ export function CatalogoView({ catalogo, token, onRefresh }: CatalogoViewProps) 
               <TableHead>Precio (Público)</TableHead>
               <TableHead>Precio (UC)</TableHead>
               <TableHead>Stock</TableHead>
+              <TableHead>Unidad</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
@@ -114,6 +115,9 @@ export function CatalogoView({ catalogo, token, onRefresh }: CatalogoViewProps) 
                   <Badge variant={libro.stock <= 5 ? 'destructive' : 'secondary'}>
                     {libro.stock}
                   </Badge>
+                </TableCell>
+                <TableCell>
+                  <span className="text-xs text-muted-foreground">{libro.unidadNegocio}</span>
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center space-x-2">
@@ -176,14 +180,29 @@ export function CatalogoView({ catalogo, token, onRefresh }: CatalogoViewProps) 
                 />
               </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="stock">Stock</Label>
-              <Input
-                id="stock"
-                type="number"
-                value={editingLibro?.stock || 0}
-                onChange={(e) => setEditingLibro({ ...editingLibro, stock: parseInt(e.target.value) || 0 })}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="stock">Stock</Label>
+                <Input
+                  id="stock"
+                  type="number"
+                  value={editingLibro?.stock || 0}
+                  onChange={(e) => setEditingLibro({ ...editingLibro, stock: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="unidadNegocio">Unidad de negocio</Label>
+                <select
+                  id="unidadNegocio"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={editingLibro?.unidadNegocio || 'Universidad Continental'}
+                  onChange={(e) => setEditingLibro({ ...editingLibro, unidadNegocio: e.target.value as Libro['unidadNegocio'] })}
+                >
+                  <option value="Universidad Continental">Universidad Continental</option>
+                  <option value="Instituto Continental">Instituto Continental</option>
+                  <option value="Posgrado">Posgrado</option>
+                </select>
+              </div>
             </div>
           </div>
           <DialogFooter>

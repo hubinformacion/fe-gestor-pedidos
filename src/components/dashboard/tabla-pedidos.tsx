@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pedido, RESPONSABLES, ESTADOS_FLUJO, EstadoPedido } from '@/lib/types';
+import { Pedido, RESPONSABLES, ESTADOS_FLUJO, EstadoPedido, ESTADOS_FINALES, DELIVERY_PRECIO_LIMA, DELIVERY_PRECIO_PROVINCIA } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { Clock, Package, MapPin, User, Minus, Plus, X, CheckCircle2, CircleDot, Circle, Save, Ban } from 'lucide-react';
+import { Clock, Package, MapPin, User, Minus, Plus, X, CheckCircle2, CircleDot, Circle, Save, Ban, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { calcularSLA, parsearFecha } from '@/lib/date-utils';
 
@@ -80,12 +80,13 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
       case 'Pendiente': return 'bg-amber-50 text-amber-700 border-amber-200';
       case 'Pagado': return 'bg-blue-50 text-blue-700 border-blue-200';
       case 'Entregado': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-      case 'Cancelado': return 'bg-red-50 text-red-700 border-red-200';
+      case 'Abandonado': return 'bg-gray-50 text-gray-600 border-gray-200';
+      case 'Anulado': return 'bg-red-50 text-red-700 border-red-200';
       default: return '';
     }
   };
 
-  const isFinalState = (estado: string) => estado === 'Entregado' || estado === 'Cancelado';
+  const isFinalState = (estado: string) => ESTADOS_FINALES.includes(estado as EstadoPedido);
 
   // ── API call with optimistic update ──
   const updatePedido = async (codigo: string, updates: { estado?: string; observaciones?: string; atendidoPor?: string }) => {
@@ -117,6 +118,17 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
   };
 
   const closeDrawer = () => { setDrawerOpen(false); setSelectedPedido(null); };
+
+  // Sync selectedPedido when pedidos prop changes (fixes SLA not refreshing after assign)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const pedidosRef = pedidos;
+  if (selectedPedido && drawerOpen) {
+    const updated = pedidosRef.find(p => p.codigo === selectedPedido.codigo);
+    if (updated && JSON.stringify(updated) !== JSON.stringify(selectedPedido)) {
+      // Will trigger re-render with fresh data
+      setTimeout(() => setSelectedPedido(updated), 0);
+    }
+  }
 
   const handleStatusClick = (newStatus: EstadoPedido) => {
     if (!selectedPedido || selectedPedido.estado === newStatus || isFinalState(selectedPedido.estado)) return;
@@ -186,11 +198,6 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
     toast.success(isParcial ? 'Entrega parcial registrada' : 'Entrega completa registrada');
   };
 
-  const handleCancelPedido = () => {
-    if (!selectedPedido) return;
-    updatePedido(selectedPedido.codigo, { estado: 'Cancelado' });
-  };
-
   return (
     <div className="space-y-4">
       {/* Filtros */}
@@ -201,6 +208,8 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
           <SelectContent>
             <SelectItem value="todos">Todos los estados</SelectItem>
             {ESTADOS_FLUJO.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+            <SelectItem value="Abandonado">Abandonado</SelectItem>
+            <SelectItem value="Anulado">Anulado</SelectItem>
           </SelectContent>
         </Select>
         <Select value={typeFilter} onValueChange={v => setTypeFilter(v || 'todos')}>
@@ -277,16 +286,16 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
               <div>
                 <h4 className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-4">Estado del pedido</h4>
                 <div className="flex items-center gap-0">
-                  {(['Pendiente', 'Pagado', 'Entregado'] as EstadoPedido[]).map((step, i, arr) => {
-                    const curIdx = selectedPedido.estado === 'Cancelado' ? -1 : arr.indexOf(selectedPedido.estado as EstadoPedido);
+                  {ESTADOS_FLUJO.map((step, i, arr) => {
+                    const curIdx = isFinalState(selectedPedido.estado) && selectedPedido.estado !== 'Entregado' ? -1 : arr.indexOf(selectedPedido.estado as EstadoPedido);
                     const done = curIdx > i;
                     const current = curIdx === i;
-                    const cancelled = selectedPedido.estado === 'Cancelado';
+                    const isTerminal = isFinalState(selectedPedido.estado) && selectedPedido.estado !== 'Entregado';
                     const locked = isFinalState(selectedPedido.estado);
-                    const canClick = !cancelled && !locked && !loadingAction && step !== selectedPedido.estado;
+                    const canClick = !isTerminal && !locked && !loadingAction && step !== selectedPedido.estado;
                     return (
                       <div key={step} className="flex items-center flex-1">
-                        <div className={`flex flex-col items-center gap-1.5 flex-1 ${cancelled ? 'opacity-30' : ''}`}>
+                        <div className={`flex flex-col items-center gap-1.5 flex-1 ${isTerminal ? 'opacity-30' : ''}`}>
                           <button disabled={!canClick} onClick={() => handleStatusClick(step)}
                             className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${
                               done ? 'bg-emerald-500 border-emerald-500 text-white' :
@@ -302,8 +311,22 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
                     );
                   })}
                 </div>
-                {selectedPedido.estado === 'Cancelado' && (
-                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm font-medium text-center">Este pedido ha sido cancelado</div>
+                {/* Abandonado / Anulado buttons */}
+                {!isFinalState(selectedPedido.estado) && (
+                  <div className="flex gap-2 mt-4">
+                    <Button variant="outline" size="sm" className="text-gray-600 border-gray-300 hover:bg-gray-100" onClick={() => updatePedido(selectedPedido.codigo, { estado: 'Abandonado' })} disabled={loadingAction}>
+                      <AlertTriangle className="h-3.5 w-3.5 mr-1.5" /> Abandonado
+                    </Button>
+                    <Button variant="outline" size="sm" className="text-red-600 border-red-300 hover:bg-red-50" onClick={() => updatePedido(selectedPedido.codigo, { estado: 'Anulado' })} disabled={loadingAction}>
+                      <Ban className="h-3.5 w-3.5 mr-1.5" /> Anulado
+                    </Button>
+                  </div>
+                )}
+                {(selectedPedido.estado === 'Abandonado') && (
+                  <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-600 text-sm font-medium text-center">Este pedido fue marcado como abandonado</div>
+                )}
+                {(selectedPedido.estado === 'Anulado') && (
+                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm font-medium text-center">Este pedido ha sido anulado</div>
                 )}
               </div>
 
@@ -391,6 +414,19 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
               {(() => {
                 const entregaData = getEntregaData(selectedPedido.observaciones);
                 const isParcial = entregaData !== null;
+                // Delivery cost
+                const deliveryCost = selectedPedido.zonaDelivery === 'Provincia' ? DELIVERY_PRECIO_PROVINCIA
+                  : selectedPedido.zonaDelivery === 'Lima/Callao' ? DELIVERY_PRECIO_LIMA : 0;
+                // Calculate totals for difference display
+                const totalOriginal = parseFloat(selectedPedido.total.replace(/[^0-9.-]/g, '')) || 0;
+                let totalEntregado = totalOriginal;
+                if (isParcial) {
+                  const libros = parseLibros(selectedPedido.libros);
+                  const totalOriginalQty = libros.reduce((s, l) => s + l.cantidad, 0);
+                  const precioUnitPromedio = totalOriginalQty > 0 ? (totalOriginal - deliveryCost) / totalOriginalQty : 0;
+                  totalEntregado = Array.from(entregaData!.values()).reduce((s, d) => s + (d.entregado * precioUnitPromedio), 0) + deliveryCost;
+                }
+                const diferencia = totalOriginal - totalEntregado;
                 return (
                   <div className="space-y-4">
                     <h4 className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-2">
@@ -418,8 +454,28 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
                           </div>
                         );
                       })}
-                      <div className="flex justify-between items-center px-5 py-4 bg-muted/30 font-bold">
-                        <span>Total</span><span className="text-lg text-primary">{selectedPedido.total}</span>
+                      {deliveryCost > 0 && (
+                        <div className="flex justify-between items-center px-5 py-3 border-b text-sm bg-muted/20">
+                          <span className="text-muted-foreground">Envío / Delivery ({selectedPedido.zonaDelivery})</span>
+                          <span className="font-medium">S/ {deliveryCost.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="px-5 py-4 bg-muted/30 space-y-1">
+                        <div className="flex justify-between items-center font-bold">
+                          <span>Total solicitado</span><span className="text-lg text-primary">{selectedPedido.total}</span>
+                        </div>
+                        {isParcial && (
+                          <>
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-emerald-700 font-medium">Total entregado</span>
+                              <span className="text-emerald-700 font-semibold">S/ {totalEntregado.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-amber-700 font-medium">Diferencia</span>
+                              <span className="text-amber-700 font-semibold">S/ {diferencia.toFixed(2)}</span>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -455,18 +511,6 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
                   </div>
                 )}
               </div>
-
-              {/* ── Cancel pedido (footer) ── */}
-              {!isFinalState(selectedPedido.estado) && (
-                <>
-                  <Separator />
-                  <div className="flex justify-end">
-                    <Button variant="destructive" onClick={handleCancelPedido} disabled={loadingAction}>
-                      <Ban className="h-4 w-4 mr-2" /> Cancelar pedido
-                    </Button>
-                  </div>
-                </>
-              )}
             </div>
           </div>
         </div>

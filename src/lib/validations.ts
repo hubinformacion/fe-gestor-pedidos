@@ -19,7 +19,12 @@ export const datosPedidoSchema = z.object({
   tipoEntrega: z.enum(['Recojo en campus', 'Envío / Delivery']),
   campusRecojo: z.string().optional(),
   direccion: z.string().optional(),
-  ciudad: z.string().optional(),
+  zonaDelivery: z.enum(['Lima/Callao', 'Provincia']).optional(),
+  departamento: z.string().optional(),
+  referenciaDelivery: z.string().optional(),
+  receptorTipo: z.enum(['Yo mismo(a)', 'Otra persona']).optional(),
+  receptorNombre: z.string().optional(),
+  receptorDocumento: z.string().optional(),
   terminos1: z.boolean().refine(val => val === true, {
     message: "Debes aceptar la política de privacidad",
   }),
@@ -35,6 +40,15 @@ export const datosPedidoSchema = z.object({
   }
   if (d.tipoEntrega === 'Envío / Delivery') {
     if (!d.direccion) ctx.addIssue({ code: 'custom', path: ['direccion'], message: 'Dirección es requerida' });
-    if (!d.ciudad) ctx.addIssue({ code: 'custom', path: ['ciudad'], message: 'Ciudad es requerida' });
+    if (!d.zonaDelivery) ctx.addIssue({ code: 'custom', path: ['zonaDelivery'], message: 'Selecciona la zona de envío' });
+    if (d.zonaDelivery === 'Provincia' && !d.departamento) {
+      ctx.addIssue({ code: 'custom', path: ['departamento'], message: 'Indica el departamento' });
+    }
+    if (!d.referenciaDelivery) ctx.addIssue({ code: 'custom', path: ['referenciaDelivery'], message: 'Referencia es requerida' });
+    if (!d.receptorTipo) ctx.addIssue({ code: 'custom', path: ['receptorTipo'], message: 'Indica quién recibirá el pedido' });
+    if (d.receptorTipo === 'Otra persona') {
+      if (!d.receptorNombre) ctx.addIssue({ code: 'custom', path: ['receptorNombre'], message: 'Nombre del receptor es requerido' });
+      if (!d.receptorDocumento) ctx.addIssue({ code: 'custom', path: ['receptorDocumento'], message: 'Documento del receptor es requerido' });
+    }
   }
 });

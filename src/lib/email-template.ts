@@ -1,4 +1,4 @@
-import { ItemPedido } from './types';
+import { ItemPedido, TipoCorreo, CAMPUS_INFO } from './types';
 
 interface EmailData {
   codigoPedido: string;
@@ -11,10 +11,21 @@ interface EmailData {
   items: ItemPedido[];
   totalGeneral: string;
   tipoEntrega: string;
+  campusRecojo?: string;
+  direccionDelivery?: string;
+  zonaDelivery?: string;
+  costoDelivery?: number;
+  referenciaDelivery?: string;
+  receptorInfo?: string;
   marcaTemporal: string;
+  tipoCorreo: TipoCorreo;
+  subtotalLibros?: string;
 }
 
 export function generarEmailHTML(d: EmailData): string {
+  const esMixto = d.tipoCorreo === 'mixto';
+
+  // ── Filas de libros (solo si NO es mixto) ──
   const filasLibros = d.items.map(i => `
     <tr style="border-bottom:1px solid #f0f0f0">
       <td style="font-size:13px;color:#1a1a1a;padding:10px 8px">${i.titulo}</td>
@@ -23,6 +34,59 @@ export function generarEmailHTML(d: EmailData): string {
         S/ ${(i.cantidad * i.precioUnit).toFixed(2)}
       </td>
     </tr>`).join('');
+
+  // ── Fila de delivery (solo si aplica) ──
+  const filaDelivery = d.costoDelivery && d.costoDelivery > 0 ? `
+    <tr style="border-bottom:1px solid #f0f0f0;background:#faf8ff">
+      <td style="font-size:13px;color:#1a1a1a;padding:10px 8px">Envío / Delivery (${d.zonaDelivery || ''})</td>
+      <td style="font-size:13px;color:#555;padding:10px 8px;text-align:center">—</td>
+      <td style="font-size:13px;color:#1a1a1a;padding:10px 8px;text-align:right;white-space:nowrap;min-width:100px">
+        S/ ${d.costoDelivery.toFixed(2)}
+      </td>
+    </tr>` : '';
+
+  // ── Sección de entrega ──
+  let entregaHTML = '';
+  if (d.campusRecojo) {
+    const campus = CAMPUS_INFO[d.campusRecojo];
+    const direccionCampus = campus
+      ? `<br/><span style="color:#555;font-size:12px">${campus.direccion}${campus.piso ? ` — ${campus.piso}` : ''}</span>`
+      : '';
+    entregaHTML = `Recojo en ${d.campusRecojo}${direccionCampus}`;
+  } else if (d.direccionDelivery) {
+    entregaHTML = `Delivery a ${d.direccionDelivery}`;
+    if (d.referenciaDelivery) entregaHTML += `<br/><span style="color:#555;font-size:12px">Ref: ${d.referenciaDelivery}</span>`;
+    if (d.receptorInfo) entregaHTML += `<br/><span style="color:#555;font-size:12px">Recibe: ${d.receptorInfo}</span>`;
+  }
+
+  // ── Sección de libros y total (condicional) ──
+  const seccionLibrosYTotal = esMixto ? `
+    <!-- Mensaje mixto -->
+    <div style="background:#fff8e1;border:1px solid #ffcc02;border-radius:8px;padding:16px 20px;margin-bottom:24px">
+      <p style="margin:0;font-size:14px;color:#6d4c00;font-weight:bold">📋 Pedido con productos de diferentes unidades de negocio</p>
+      <p style="margin:8px 0 0;font-size:13px;color:#6d4c00;line-height:1.6">
+        Tu pedido contiene libros de distintas unidades (Universidad/Posgrado e Instituto Continental).
+        Nos comunicaremos contigo para completar el proceso de pago.
+      </p>
+    </div>` : `
+    <!-- Books table -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px">
+      <tr><td colspan="3" style="font-size:11px;font-weight:bold;color:#6802C1;text-transform:uppercase;
+          letter-spacing:1px;padding-bottom:8px;border-bottom:2px solid #f0ecf5">Libros solicitados</td></tr>
+      <tr style="background:#f9f7fc">
+        <td style="font-size:11px;color:#888;padding:8px;font-weight:bold">Título</td>
+        <td style="font-size:11px;color:#888;padding:8px;font-weight:bold;text-align:center">Cant.</td>
+        <td style="font-size:11px;color:#888;padding:8px;font-weight:bold;text-align:right;min-width:100px">Subtotal</td>
+      </tr>
+      ${filasLibros}
+      ${filaDelivery}
+      <tr style="background:#f0ecf5">
+        <td colspan="2" style="font-size:14px;font-weight:bold;color:#1a1a1a;padding:12px 8px">Total</td>
+        <td style="font-size:14px;font-weight:bold;color:#6802C1;padding:12px 8px;text-align:right;white-space:nowrap">
+          S/ ${d.totalGeneral}
+        </td>
+      </tr>
+    </table>`;
 
   return `<!DOCTYPE html>
 <html lang="es"><head><meta charset="UTF-8"></head>
@@ -64,28 +128,12 @@ export function generarEmailHTML(d: EmailData): string {
       <tr><td style="font-size:13px;color:#888;padding:4px 0">Tipo cliente</td>
           <td style="font-size:13px;color:#1a1a1a;padding:4px 0">${d.comunidad}</td></tr>
     </table>
-    <!-- Books table -->
-    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px">
-      <tr><td colspan="3" style="font-size:11px;font-weight:bold;color:#6802C1;text-transform:uppercase;
-          letter-spacing:1px;padding-bottom:8px;border-bottom:2px solid #f0ecf5">Libros solicitados</td></tr>
-      <tr style="background:#f9f7fc">
-        <td style="font-size:11px;color:#888;padding:8px;font-weight:bold">Título</td>
-        <td style="font-size:11px;color:#888;padding:8px;font-weight:bold;text-align:center">Cant.</td>
-        <td style="font-size:11px;color:#888;padding:8px;font-weight:bold;text-align:right;min-width:100px">Subtotal</td>
-      </tr>
-      ${filasLibros}
-      <tr style="background:#f0ecf5">
-        <td colspan="2" style="font-size:14px;font-weight:bold;color:#1a1a1a;padding:12px 8px">Total</td>
-        <td style="font-size:14px;font-weight:bold;color:#6802C1;padding:12px 8px;text-align:right;white-space:nowrap">
-          S/ ${d.totalGeneral}
-        </td>
-      </tr>
-    </table>
+    ${seccionLibrosYTotal}
     <!-- Delivery -->
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px">
       <tr><td style="font-size:11px;font-weight:bold;color:#6802C1;text-transform:uppercase;
           letter-spacing:1px;padding-bottom:8px;border-bottom:2px solid #f0ecf5">Entrega</td></tr>
-      <tr><td style="font-size:13px;color:#1a1a1a;padding:8px 0">${d.tipoEntrega}</td></tr>
+      <tr><td style="font-size:13px;color:#1a1a1a;padding:8px 0">${entregaHTML}</td></tr>
     </table>
     <p style="margin:0;font-size:13px;color:#555;line-height:1.6">
       Cualquier duda o consulta escríbenos al correo fondoeditorial@continental.edu.pe o
