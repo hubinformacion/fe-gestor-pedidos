@@ -18,8 +18,8 @@ export function DashboardShell({ token, onLogout }: DashboardShellProps) {
   const [catalogo, setCatalogo] = useState<Libro[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
+  const fetchData = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
     try {
       const res = await fetch(`/api/dashboard/data?token=${encodeURIComponent(token)}`);
       if (res.status === 401) {
@@ -33,11 +33,13 @@ export function DashboardShell({ token, onLogout }: DashboardShellProps) {
       setPedidos((data.pedidos || []).reverse());
       setCatalogo(data.catalogo || []);
     } catch (error) {
-      toast.error('No se pudieron cargar los datos');
+      if (!silent) toast.error('No se pudieron cargar los datos');
     } finally {
       setIsLoading(false);
     }
   }, [token, onLogout]);
+
+  const silentRefresh = useCallback(() => fetchData(true), [fetchData]);
 
   useEffect(() => {
     fetchData();
@@ -52,7 +54,7 @@ export function DashboardShell({ token, onLogout }: DashboardShellProps) {
           <p className="text-sm text-muted-foreground">Fondo Editorial UC</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={fetchData} disabled={isLoading}>
+          <Button variant="outline" size="sm" onClick={() => fetchData()} disabled={isLoading}>
             <RefreshCw className={`mr-2 h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             Actualizar
           </Button>
@@ -82,7 +84,7 @@ export function DashboardShell({ token, onLogout }: DashboardShellProps) {
               ))}
             </div>
           ) : (
-            <TablaPedidos pedidos={pedidos} token={token} onRefresh={fetchData} />
+            <TablaPedidos pedidos={pedidos} token={token} onRefresh={silentRefresh} />
           )}
         </TabsContent>
 
@@ -94,7 +96,7 @@ export function DashboardShell({ token, onLogout }: DashboardShellProps) {
               ))}
             </div>
           ) : (
-            <CatalogoView catalogo={catalogo} token={token} onRefresh={fetchData} />
+            <CatalogoView catalogo={catalogo} token={token} onRefresh={silentRefresh} />
           )}
         </TabsContent>
       </Tabs>
