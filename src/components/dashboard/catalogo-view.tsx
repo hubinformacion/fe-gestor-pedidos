@@ -30,7 +30,7 @@ export function CatalogoView({ catalogo, token, onRefresh }: CatalogoViewProps) 
     if (libro) {
       setEditingLibro({ ...libro });
     } else {
-      setEditingLibro({ titulo: '', precioNormal: 0, precioCont: 0, stock: 0, estado: 'Activo', unidadNegocio: 'Universidad Continental' });
+      setEditingLibro({ titulo: '', precioNormal: 0, precioCont: 0, stock: 0, estado: 'Activo', selloEditorial: 'Universidad Continental' });
     }
     setIsModalOpen(true);
   };
@@ -100,7 +100,7 @@ export function CatalogoView({ catalogo, token, onRefresh }: CatalogoViewProps) 
               <TableHead>Precio (Público)</TableHead>
               <TableHead>Precio (UC)</TableHead>
               <TableHead>Stock</TableHead>
-              <TableHead>Unidad</TableHead>
+              <TableHead>Sello</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
@@ -117,7 +117,7 @@ export function CatalogoView({ catalogo, token, onRefresh }: CatalogoViewProps) 
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <span className="text-xs text-muted-foreground">{libro.unidadNegocio}</span>
+                  <span className="text-xs text-muted-foreground">{libro.selloEditorial}</span>
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center space-x-2">
@@ -191,16 +191,15 @@ export function CatalogoView({ catalogo, token, onRefresh }: CatalogoViewProps) 
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="unidadNegocio">Unidad de negocio</Label>
+                <Label htmlFor="selloEditorial">Sello editorial</Label>
                 <select
-                  id="unidadNegocio"
+                  id="selloEditorial"
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={editingLibro?.unidadNegocio || 'Universidad Continental'}
-                  onChange={(e) => setEditingLibro({ ...editingLibro, unidadNegocio: e.target.value as Libro['unidadNegocio'] })}
+                  value={editingLibro?.selloEditorial || 'Universidad Continental'}
+                  onChange={(e) => setEditingLibro({ ...editingLibro, selloEditorial: e.target.value as Libro['selloEditorial'] })}
                 >
                   <option value="Universidad Continental">Universidad Continental</option>
                   <option value="Instituto Continental">Instituto Continental</option>
-                  <option value="Posgrado">Posgrado</option>
                 </select>
               </div>
             </div>

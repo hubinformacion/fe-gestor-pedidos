@@ -5,7 +5,7 @@ export interface Libro {
   precioCont: number;
   stock: number;
   estado: 'Activo' | 'Inactivo';
-  unidadNegocio: 'Universidad Continental' | 'Instituto Continental' | 'Posgrado';
+  selloEditorial: 'Universidad Continental' | 'Instituto Continental';
 }
 
 export interface ItemPedido {
@@ -33,6 +33,10 @@ export interface DatosPedido {
   receptorTipo?: 'Yo mismo(a)' | 'Otra persona';
   receptorNombre?: string;
   receptorDocumento?: string;
+  receptorTelefono?: string;
+  requiereFactura?: boolean;
+  ruc?: string;
+  razonSocial?: string;
   terminos1: boolean;
   terminos2: boolean;
 }
@@ -62,6 +66,10 @@ export interface Pedido {
   zonaDelivery: string;
   referenciaDelivery: string;
   receptor: string;
+  receptorTelefono: string;
+  requiereFactura: string;
+  ruc: string;
+  razonSocial: string;
 }
 
 // ── Direcciones de campus (orden alfabético) ──
@@ -123,14 +131,14 @@ export const RESPONSABLES = [
 export const ESTADOS_FLUJO: EstadoPedido[] = ['Pendiente', 'Pagado', 'Entregado'];
 export const ESTADOS_FINALES: EstadoPedido[] = ['Entregado', 'Abandonado', 'Anulado'];
 
-// ── Tipo de correo según unidad de negocio ──
-export type TipoCorreo = 'universidad-posgrado' | 'instituto' | 'mixto';
+// ── Tipo de correo según sello editorial ──
+export type TipoCorreo = 'universidad' | 'instituto' | 'mixto';
 
-export function determinarTipoCorreo(unidades: string[]): TipoCorreo {
-  const set = new Set(unidades);
+export function determinarTipoCorreo(sellos: string[]): TipoCorreo {
+  const set = new Set(sellos);
   const tieneInstituto = set.has('Instituto Continental');
-  const tieneOtro = set.has('Universidad Continental') || set.has('Posgrado');
-  if (tieneInstituto && tieneOtro) return 'mixto';
+  const tieneUniversidad = set.has('Universidad Continental');
+  if (tieneInstituto && tieneUniversidad) return 'mixto';
   if (tieneInstituto) return 'instituto';
-  return 'universidad-posgrado';
+  return 'universidad';
 }

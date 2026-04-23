@@ -58,6 +58,7 @@ export function FormularioPedido() {
       setValue('receptorTipo', undefined as any);
       setValue('receptorNombre', undefined as any);
       setValue('receptorDocumento', undefined as any);
+      setValue('receptorTelefono', undefined as any);
     }
     if (watchedEntrega === 'Envío / Delivery') {
       setValue('campusRecojo', undefined as any);
@@ -186,6 +187,11 @@ export function FormularioPedido() {
   // ── Main Form ──
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 pb-24">
+
+      {/* Logo header */}
+      <div className="flex items-center justify-center mb-8">
+        <img src="/logo-fondo-editorial.svg" alt="Fondo Editorial" className="h-12 w-auto" />
+      </div>
 
       {/* Step indicator */}
       <div className="mb-8">
@@ -465,12 +471,15 @@ export function FormularioPedido() {
                     )} />
                   </div>
                   {watchedReceptorTipo === 'Otra persona' && (
-                    <div className="grid gap-5 md:grid-cols-2 step-animate">
+                    <div className="grid gap-5 md:grid-cols-3 step-animate">
                       <FormField control={form.control} name="receptorNombre" render={({ field }) => (
                         <FormItem><FormLabel>Nombre del receptor</FormLabel><FormControl><Input placeholder="Nombre completo" {...field} /></FormControl><FormMessage /></FormItem>
                       )} />
                       <FormField control={form.control} name="receptorDocumento" render={({ field }) => (
-                        <FormItem><FormLabel>DNI / Documento del receptor</FormLabel><FormControl><Input placeholder="N° de documento" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>DNI / Documento</FormLabel><FormControl><Input placeholder="N° de documento" {...field} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={form.control} name="receptorTelefono" render={({ field }) => (
+                        <FormItem><FormLabel>Celular del receptor</FormLabel><FormControl><Input placeholder="Ej. 987654321" {...field} /></FormControl><FormMessage /></FormItem>
                       )} />
                     </div>
                   )}
@@ -506,6 +515,28 @@ export function FormularioPedido() {
                   <span>Total estimado</span>
                   <span className="text-primary">S/ {totalCarrito.toFixed(2)}</span>
                 </div>
+              </div>
+
+              {/* Invoice checkbox */}
+              <div className="bg-card border rounded-lg p-5 space-y-4">
+                <FormField control={form.control} name="requiereFactura" render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                    <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="font-normal text-sm">¿Requiere factura?</FormLabel>
+                    </div>
+                  </FormItem>
+                )} />
+                {form.watch('requiereFactura') && (
+                  <div className="grid gap-4 md:grid-cols-2 step-animate">
+                    <FormField control={form.control} name="ruc" render={({ field }) => (
+                      <FormItem><FormLabel>RUC</FormLabel><FormControl><Input placeholder="20XXXXXXXXX" maxLength={11} {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="razonSocial" render={({ field }) => (
+                      <FormItem><FormLabel>Razón social</FormLabel><FormControl><Input placeholder="Nombre de la empresa" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                  </div>
+                )}
               </div>
 
               <div className="space-y-4 bg-card border rounded-lg p-5">

@@ -25,7 +25,7 @@ interface EmailData {
 export function generarEmailHTML(d: EmailData): string {
   const esMixto = d.tipoCorreo === 'mixto';
 
-  // ── Filas de libros (solo si NO es mixto) ──
+  // ── Filas de libros ──
   const filasLibros = d.items.map(i => `
     <tr style="border-bottom:1px solid #f0f0f0">
       <td style="font-size:13px;color:#1a1a1a;padding:10px 8px">${i.titulo}</td>
@@ -59,16 +59,8 @@ export function generarEmailHTML(d: EmailData): string {
     if (d.receptorInfo) entregaHTML += `<br/><span style="color:#555;font-size:12px">Receptor: ${d.receptorInfo}</span>`;
   }
 
-  // ── Sección de libros y total (condicional) ──
-  const seccionLibrosYTotal = esMixto ? `
-    <!-- Mensaje mixto -->
-    <div style="background:#fff8e1;border:1px solid #ffcc02;border-radius:8px;padding:16px 20px;margin-bottom:24px">
-      <p style="margin:0;font-size:14px;color:#6d4c00;font-weight:bold">📋 Pedido con productos de diferentes sellos editoriales</p>
-      <p style="margin:8px 0 0;font-size:13px;color:#6d4c00;line-height:1.6">
-        Tu pedido contiene libros de sellos editoriales distintos.
-        Nos comunicaremos contigo para completar el proceso de pago.
-      </p>
-    </div>` : `
+  // ── Tabla de libros (siempre se muestra, incluso en mixto) ──
+  const tablaLibros = `
     <!-- Books table -->
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px">
       <tr><td colspan="3" style="font-size:11px;font-weight:bold;color:#6802C1;text-transform:uppercase;
@@ -87,6 +79,22 @@ export function generarEmailHTML(d: EmailData): string {
         </td>
       </tr>
     </table>`;
+
+  // ── Sección condicional: banner mixto + tabla, o solo tabla ──
+  const seccionLibrosYTotal = esMixto ? `
+    <!-- Mensaje mixto -->
+    <div style="background:#fff8e1;border:1px solid #ffcc02;border-radius:8px;padding:16px 20px;margin-bottom:24px">
+      <p style="margin:0;font-size:14px;color:#6d4c00;font-weight:bold">📋 Pedido con productos de diferentes sellos editoriales</p>
+      <p style="margin:8px 0 0;font-size:13px;color:#6d4c00;line-height:1.6">
+        Tu pedido contiene libros de sellos editoriales distintos.
+        Nos comunicaremos contigo para completar el proceso de pago.
+      </p>
+    </div>
+    ${tablaLibros}` : tablaLibros;
+
+  // ── Mensaje de pago (no mostrar en mixto, ya que se contactarán) ──
+  const mensajePago = esMixto ? '' : `
+    <p style="margin:0 0 10px 0;font-size:13px;color:#555;line-height:1.6; font-weight:bold;">Para concretar tu compra te recomendamos leer el proceso de pago adjunto a este mensaje.</p>`;
 
   return `<!DOCTYPE html>
 <html lang="es"><head><meta charset="UTF-8"></head>
@@ -128,7 +136,7 @@ export function generarEmailHTML(d: EmailData): string {
           <td style="font-size:13px;color:#1a1a1a;padding:4px 0">${d.comunidad}</td></tr>
     </table>
     ${seccionLibrosYTotal}
-    <p style="margin:0 0 10px 0;font-size:13px;color:#555;line-height:1.6; font-weight:bold;">Para concretar tu compra te recomendamos leer el proceso de pago adjunto a este mensaje.</p>
+    ${mensajePago}
     <!-- Delivery -->
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px">
       <tr><td style="font-size:11px;font-weight:bold;color:#6802C1;text-transform:uppercase;

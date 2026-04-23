@@ -171,25 +171,11 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
     if (!selectedPedido) return;
     const totalE = itemsEntrega.reduce((s, i) => s + i.cantidadEntregada, 0);
     const totalS = itemsEntrega.reduce((s, i) => s + i.cantidadSolicitada, 0);
-    const detalle = itemsEntrega.map(i => `${i.titulo}: ${i.cantidadEntregada}/${i.cantidadSolicitada}`).join(' | ');
     const isParcial = totalE < totalS;
     const tag = isParcial ? '[ENTREGA PARCIAL]' : '[ENTREGA COMPLETA]';
 
-    // Recalculate price for partial delivery
-    let notaExtra = '';
-    if (isParcial) {
-      // Parse original total
-      const originalTotal = parseFloat(selectedPedido.total.replace('S/', '').trim()) || 0;
-      // Calculate proportional total based on items delivered
-      const libros = parseLibros(selectedPedido.libros);
-      const totalOriginalQty = libros.reduce((s, l) => s + l.cantidad, 0);
-      const pricePerUnit = totalOriginalQty > 0 ? originalTotal / totalOriginalQty : 0;
-      const adjustedTotal = itemsEntrega.reduce((s, i) => s + (i.cantidadEntregada * pricePerUnit), 0);
-      notaExtra = ` | Total ajustado: S/ ${adjustedTotal.toFixed(2)} (original: ${selectedPedido.total})`;
-    }
-
     const existingNotes = selectedPedido.observaciones || '';
-    const entregaNote = `${tag} ${detalle}${notaExtra}`;
+    const entregaNote = tag;
     const combined = existingNotes
       ? `${existingNotes}${OBS_SEPARATOR}${entregaNote}`
       : entregaNote;
@@ -232,30 +218,49 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
               <TableHead>Fecha</TableHead>
               <TableHead>Cliente</TableHead>
               <TableHead className="hidden lg:table-cell">Libros</TableHead>
-              <TableHead>Total</TableHead>
+              <TableHead>Solicitado</TableHead>
+              <TableHead>Recibido</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>Responsable</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map(p => (
-              <TableRow key={p.codigo} className="cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => openDrawer(p)}>
-                <TableCell className="font-mono font-semibold text-sm whitespace-nowrap">{p.codigo}</TableCell>
-                <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{p.fecha}</TableCell>
-                <TableCell>
-                  <div className="font-medium text-sm">{p.nombre}</div>
-                  <div className="text-xs text-muted-foreground">{p.tipo}{p.sede ? ` · ${p.sede}` : ''}</div>
-                </TableCell>
-                <TableCell className="hidden lg:table-cell max-w-[220px] truncate text-xs text-muted-foreground" title={p.libros}>{p.libros}</TableCell>
-                <TableCell className="whitespace-nowrap font-semibold text-sm">{p.total}</TableCell>
-                <TableCell>
-                  <Badge className={`text-[11px] px-2 py-0.5 border ${getStatusStyle(p.estado)}`} variant="outline">{p.estado}</Badge>
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">{p.atendidoPor || '—'}</TableCell>
-              </TableRow>
-            ))}
+            {filtered.map(p => {
+              // Calculate received total from observations
+              const entregaData = getEntregaData(p.observaciones);
+              const deliveryCost = p.zonaDelivery === 'Provincia' ? DELIVERY_PRECIO_PROVINCIA
+                : p.zonaDelivery === 'Lima/Callao' ? DELIVERY_PRECIO_LIMA : 0;
+              let recibidoStr = '—';
+              if (entregaData) {
+                const totalOriginal = parseFloat(p.total.replace(/[^0-9.-]/g, '')) || 0;
+                const libros = parseLibros(p.libros);
+                const totalQty = libros.reduce((s, l) => s + l.cantidad, 0);
+                const precioUnit = totalQty > 0 ? (totalOriginal - deliveryCost) / totalQty : 0;
+                const totalRecibido = Array.from(entregaData.values()).reduce((s, d) => s + (d.entregado * precioUnit), 0) + deliveryCost;
+                recibidoStr = `S/ ${totalRecibido.toFixed(2)}`;
+              } else if (p.estado === 'Entregado') {
+                recibidoStr = p.total;
+              }
+              return (
+                <TableRow key={p.codigo} className="cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => openDrawer(p)}>
+                  <TableCell className="font-mono font-semibold text-sm whitespace-nowrap">{p.codigo}</TableCell>
+                  <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{p.fecha}</TableCell>
+                  <TableCell>
+                    <div className="font-medium text-sm">{p.nombre}</div>
+                    <div className="text-xs text-muted-foreground">{p.tipo}{p.sede ? ` · ${p.sede}` : ''}</div>
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell max-w-[220px] truncate text-xs text-muted-foreground" title={p.libros}>{p.libros}</TableCell>
+                  <TableCell className="whitespace-nowrap font-semibold text-sm">{p.total}</TableCell>
+                  <TableCell className="whitespace-nowrap text-sm text-muted-foreground">{recibidoStr}</TableCell>
+                  <TableCell>
+                    <Badge className={`text-[11px] px-2 py-0.5 border ${getStatusStyle(p.estado)}`} variant="outline">{p.estado}</Badge>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{p.atendidoPor || '—'}</TableCell>
+                </TableRow>
+              );
+            })}
             {filtered.length === 0 && (
-              <TableRow><TableCell colSpan={7} className="h-24 text-center text-muted-foreground">No se encontraron pedidos.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="h-24 text-center text-muted-foreground">No se encontraron pedidos.</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
@@ -278,11 +283,11 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
                 <div className="flex items-center gap-3">
                   {!isFinalState(selectedPedido.estado) && (
                     <>
-                      <Button variant="outline" size="sm" className="text-gray-600 border-gray-300 hover:bg-gray-100" onClick={() => updatePedido(selectedPedido.codigo, { estado: 'Abandonado' })} disabled={loadingAction}>
-                        <AlertTriangle className="h-3.5 w-3.5 mr-1.5" /> Abandonado
+                      <Button variant="outline" size="sm" className="text-gray-600 border-gray-300 hover:bg-gray-100" onClick={() => updatePedido(selectedPedido.codigo, { estado: 'Abandonado' })} disabled={loadingAction} title="El cliente no completó el proceso de compra">
+                        <AlertTriangle className="h-3.5 w-3.5 mr-1.5" /> Carrito abandonado
                       </Button>
-                      <Button variant="outline" size="sm" className="text-red-600 border-red-300 hover:bg-red-50" onClick={() => updatePedido(selectedPedido.codigo, { estado: 'Anulado' })} disabled={loadingAction}>
-                        <Ban className="h-3.5 w-3.5 mr-1.5" /> Anulado
+                      <Button variant="outline" size="sm" className="text-red-600 border-red-300 hover:bg-red-50" onClick={() => updatePedido(selectedPedido.codigo, { estado: 'Anulado' })} disabled={loadingAction} title="Se cancela el pedido por decisión del área o del cliente">
+                        <Ban className="h-3.5 w-3.5 mr-1.5" /> Pedido anulado
                       </Button>
                     </>
                   )}

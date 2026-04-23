@@ -42,14 +42,13 @@ export async function getCatalogo(): Promise<Libro[]> {
       const isActive = rawEstado === 'TRUE' || rawEstado === 'VERDADERO' || rawEstado === 'ACTIVO';
       const estado = isActive ? 'Activo' : 'Inactivo';
       
-      // Unidad de negocio (columna G)
-      const rawUnidad = r[6] ? String(r[6]).trim() : 'Universidad Continental';
-      const unidadMap: Record<string, Libro['unidadNegocio']> = {
+      // Sello editorial (columna G)
+      const rawSello = r[6] ? String(r[6]).trim() : 'Universidad Continental';
+      const selloMap: Record<string, Libro['selloEditorial']> = {
         'universidad continental': 'Universidad Continental',
         'instituto continental': 'Instituto Continental',
-        'posgrado': 'Posgrado',
       };
-      const unidadNegocio = unidadMap[rawUnidad.toLowerCase()] || 'Universidad Continental';
+      const selloEditorial = selloMap[rawSello.toLowerCase()] || 'Universidad Continental';
 
       return {
         id: String(r[0] ?? ''),
@@ -58,7 +57,7 @@ export async function getCatalogo(): Promise<Libro[]> {
         precioCont: parsearNumeroSeguro(r[3]),
         stock: parsearNumeroSeguro(r[4]),
         estado,
-        unidadNegocio,
+        selloEditorial,
       };
     });
 }
@@ -157,11 +156,15 @@ export async function guardarPedido(
     data.zonaDelivery || '', // T: Zona Delivery
     data.referenciaDelivery || '', // U: Referencia dirección
     receptorStr, // V: Receptor
+    data.receptorTipo === 'Otra persona' ? (data.receptorTelefono || '') : '', // W: Teléfono receptor
+    data.requiereFactura ? 'Sí' : 'No', // X: ¿Requiere factura?
+    data.requiereFactura ? (data.ruc || '') : '', // Y: RUC
+    data.requiereFactura ? (data.razonSocial || '') : '', // Z: Razón social
   ];
 
   await sheets.spreadsheets.values.append({
     spreadsheetId: ssId,
-    range: `Pedidos!A:V`,
+    range: `Pedidos!A:Z`,
     valueInputOption: 'RAW',
     requestBody: { values: [fila] },
   });
@@ -181,6 +184,15 @@ export async function enviarCorreoAPI(params: {
   const marca = obtenerMarcaTemporalActual();
   const subtotalLibros = (totalGeneral - costoDelivery).toFixed(2);
   
+  // Receptor info con teléfono
+  let receptorInfo: string | undefined;
+  if (data.receptorTipo === 'Otra persona') {
+    receptorInfo = `${data.receptorNombre} (${data.receptorDocumento})`;
+    if (data.receptorTelefono) receptorInfo += ` — Cel: ${data.receptorTelefono}`;
+  } else if (data.receptorTipo === 'Yo mismo(a)') {
+    receptorInfo = 'El/La comprador(a)';
+  }
+
   const htmlBody = generarEmailHTML({
     codigoPedido,
     nombreUsuario: `${data.nombres} ${data.apellidos}`,
@@ -202,9 +214,7 @@ export async function enviarCorreoAPI(params: {
     zonaDelivery: data.zonaDelivery,
     costoDelivery,
     referenciaDelivery: data.referenciaDelivery,
-    receptorInfo: data.receptorTipo === 'Otra persona'
-      ? `${data.receptorNombre} (${data.receptorDocumento})`
-      : data.receptorTipo === 'Yo mismo(a)' ? 'El/La comprador(a)' : undefined,
+    receptorInfo,
     marcaTemporal: marca,
     tipoCorreo,
   });
@@ -297,7 +307,7 @@ export async function getTodosPedidos(): Promise<Pedido[]> {
   
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: process.env.GOOGLE_SPREADSHEET_ID!,
-    range: 'Pedidos!A2:V',
+    range: 'Pedidos!A2:Z',
   });
 
   return (res.data.values || [])
@@ -325,6 +335,10 @@ export async function getTodosPedidos(): Promise<Pedido[]> {
       zonaDelivery: r[19] || '',
       referenciaDelivery: r[20] || '',
       receptor: r[21] || '',
+      receptorTelefono: r[22] || '',
+      requiereFactura: r[23] || 'No',
+      ruc: r[24] || '',
+      razonSocial: r[25] || '',
     }));
 }
 
@@ -345,7 +359,7 @@ export async function actualizarEstadoPedido(
   // 1. Obtener toda la tabla para encontrar la fila
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: ssId,
-    range: 'Pedidos!A:V',
+    range: 'Pedidos!A:Z',
   });
   
   const rows = res.data.values || [];
@@ -405,18 +419,19 @@ export async function guardarLibro(libro: Partial<Libro>): Promise<void> {
       const precioNormal = libro.precioNormal ?? currentRow[2];
       const precioCont = libro.precioCont ?? currentRow[3];
       const stock = libro.stock ?? currentRow[4];
-      const unidadNegocio = libro.unidadNegocio ?? currentRow[6] ?? 'Universidad Continental';
+      const selloEditorial = libro.selloEditorial ?? currentRow[6] ?? 'Universidad Continental';
       
-      let estadoGuardado = currentRow[5];
+      // Checkbox: usar booleano nativo para que Sheets lo interprete como casilla
+      let estadoGuardado: boolean | string = currentRow[5];
       if (libro.estado) {
-        estadoGuardado = libro.estado === 'Inactivo' ? 'FALSE' : 'TRUE';
+        estadoGuardado = libro.estado !== 'Inactivo'; // true o false nativo
       }
 
       await sheets.spreadsheets.values.update({
         spreadsheetId: ssId,
         range: `items!B${idx + 1}:G${idx + 1}`, // Columnas B a G
-        valueInputOption: 'RAW',
-        requestBody: { values: [[titulo, precioNormal, precioCont, stock, estadoGuardado, unidadNegocio]] },
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: [[titulo, precioNormal, precioCont, stock, estadoGuardado, selloEditorial]] },
       });
       return;
     }
@@ -425,8 +440,8 @@ export async function guardarLibro(libro: Partial<Libro>): Promise<void> {
   // Si no hay ID o no se encontró, insertamos nueva fila al final
   const newId = libro.id || Date.now().toString(); // Fallback para ID
   
-  // Guardar como booleano (TRUE/FALSE) para que la celda checkbox en sheets funcione
-  const estadoGuardado = libro.estado === 'Inactivo' ? 'FALSE' : 'TRUE';
+  // Guardar como booleano nativo para checkbox
+  const estadoGuardado = libro.estado !== 'Inactivo';
   
   const fila = [
     newId,
@@ -435,13 +450,13 @@ export async function guardarLibro(libro: Partial<Libro>): Promise<void> {
     libro.precioCont || 0,
     libro.stock || 0,
     estadoGuardado,
-    libro.unidadNegocio || 'Universidad Continental',
+    libro.selloEditorial || 'Universidad Continental',
   ];
 
   await sheets.spreadsheets.values.append({
     spreadsheetId: ssId,
     range: 'items!A:G',
-    valueInputOption: 'RAW',
+    valueInputOption: 'USER_ENTERED',
     requestBody: { values: [fila] },
   });
 }

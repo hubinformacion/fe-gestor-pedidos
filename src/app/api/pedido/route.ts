@@ -40,12 +40,12 @@ export async function POST(req: NextRequest) {
 
     const totalGeneral = subtotalLibros + costoDelivery;
 
-    // Determinar tipo de correo según unidades de negocio de los libros
-    const unidadesDelPedido = librosSeguros.map(item => {
+    // Determinar tipo de correo según sello editorial de los libros
+    const sellosDelPedido = librosSeguros.map(item => {
       const libro = catalogo.find(l => l.titulo === item.titulo);
-      return libro?.unidadNegocio || 'Universidad Continental';
+      return libro?.selloEditorial || 'Universidad Continental';
     });
-    const tipoCorreo = determinarTipoCorreo(unidadesDelPedido);
+    const tipoCorreo = determinarTipoCorreo(sellosDelPedido);
 
     // Obtener y formatear el código de pedido N-AÑO
     const numPedido = await getNumeroPedido();

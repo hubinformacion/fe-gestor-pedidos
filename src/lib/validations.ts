@@ -25,6 +25,10 @@ export const datosPedidoSchema = z.object({
   receptorTipo: z.enum(['Yo mismo(a)', 'Otra persona']).optional(),
   receptorNombre: z.string().optional(),
   receptorDocumento: z.string().optional(),
+  receptorTelefono: z.string().optional(),
+  requiereFactura: z.boolean().optional(),
+  ruc: z.string().optional(),
+  razonSocial: z.string().optional(),
   terminos1: z.boolean().refine(val => val === true, {
     message: "Debes aceptar la política de privacidad",
   }),
@@ -49,6 +53,11 @@ export const datosPedidoSchema = z.object({
     if (d.receptorTipo === 'Otra persona') {
       if (!d.receptorNombre) ctx.addIssue({ code: 'custom', path: ['receptorNombre'], message: 'Nombre del receptor es requerido' });
       if (!d.receptorDocumento) ctx.addIssue({ code: 'custom', path: ['receptorDocumento'], message: 'Documento del receptor es requerido' });
+      if (!d.receptorTelefono) ctx.addIssue({ code: 'custom', path: ['receptorTelefono'], message: 'Celular del receptor es requerido' });
     }
+  }
+  if (d.requiereFactura) {
+    if (!d.ruc || d.ruc.length < 11) ctx.addIssue({ code: 'custom', path: ['ruc'], message: 'RUC debe tener 11 dígitos' });
+    if (!d.razonSocial) ctx.addIssue({ code: 'custom', path: ['razonSocial'], message: 'Razón social es requerida' });
   }
 });
