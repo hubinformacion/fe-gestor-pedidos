@@ -22,7 +22,7 @@ export function CatalogoView({ catalogo, token, onRefresh }: CatalogoViewProps) 
   const [editingLibro, setEditingLibro] = useState<Partial<Libro> | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const filteredCatalogo = catalogo.filter(l => 
+  const filteredCatalogo = catalogo.filter(l =>
     l.titulo.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -70,7 +70,7 @@ export function CatalogoView({ catalogo, token, onRefresh }: CatalogoViewProps) 
       });
 
       if (!res.ok) throw new Error('Error al actualizar estado');
-      
+
       toast.success('Estado actualizado');
       onRefresh();
     } catch (error) {
@@ -121,7 +121,7 @@ export function CatalogoView({ catalogo, token, onRefresh }: CatalogoViewProps) 
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center space-x-2">
-                    <Switch 
+                    <Switch
                       checked={libro.estado === 'Activo'}
                       onCheckedChange={(c) => handleToggleEstado(libro, c)}
                     />
