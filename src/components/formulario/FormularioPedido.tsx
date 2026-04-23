@@ -8,7 +8,6 @@ import { CheckCircle2, Loader2, Minus, Plus, ShoppingCart, AlertCircle, ChevronR
 
 import { datosPedidoSchema } from '@/lib/validations';
 import { Libro, SEDES, CAMPUS_INFO, DELIVERY_PRECIO_LIMA, DELIVERY_PRECIO_PROVINCIA } from '@/lib/types';
-import { Map, MapMarker, MarkerContent, MarkerTooltip } from '@/components/ui/map';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,20 +46,21 @@ export function FormularioPedido() {
   const watchedLibros = watch('libros');
   const watchedZonaDelivery = watch('zonaDelivery');
   const watchedReceptorTipo = watch('receptorTipo');
+  const watchedCampus = watch('campusRecojo');
 
   // Reset delivery fields when switching to Recojo en campus
   useEffect(() => {
     if (watchedEntrega === 'Recojo en campus') {
-      setValue('zonaDelivery', '' as any);
-      setValue('departamento', '');
-      setValue('direccion', '');
-      setValue('referenciaDelivery', '');
-      setValue('receptorTipo', '' as any);
-      setValue('receptorNombre', '');
-      setValue('receptorDocumento', '');
+      setValue('zonaDelivery', undefined as any);
+      setValue('departamento', undefined as any);
+      setValue('direccion', undefined as any);
+      setValue('referenciaDelivery', undefined as any);
+      setValue('receptorTipo', undefined as any);
+      setValue('receptorNombre', undefined as any);
+      setValue('receptorDocumento', undefined as any);
     }
     if (watchedEntrega === 'Envío / Delivery') {
-      setValue('campusRecojo', '');
+      setValue('campusRecojo', undefined as any);
     }
   }, [watchedEntrega, setValue]);
 
@@ -181,7 +181,7 @@ export function FormularioPedido() {
           <div className="flex flex-col gap-3 items-center">
             <a href={waLink} target="_blank" rel="noreferrer">
               <Button size="lg" className="bg-[#25D366] hover:bg-[#1da851] text-white gap-2">
-                <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" /></svg>
                 Contactar por WhatsApp
               </Button>
             </a>
@@ -246,39 +246,39 @@ export function FormularioPedido() {
                       </div>
                     </div>
                     <div className="divide-y divide-border max-h-[380px] overflow-y-auto">
-                    {catalogo
-                      .filter(libro => libro.titulo.toLowerCase().includes(searchQuery.toLowerCase()))
-                      .map((libro) => {
-                      const enCarrito = watchedLibros.find(l => l.titulo === libro.titulo);
-                      const cant = enCarrito?.cantidad || 0;
-                      const agotado = libro.stock <= 0;
-                      return (
-                        <div key={libro.id} className={`flex items-center justify-between p-4 transition-colors ${cant > 0 ? 'bg-primary/4' : 'bg-background hover:bg-muted/30'}`}>
-                          <div className="pr-4 flex-1 min-w-0">
-                            <h4 className="font-medium text-sm leading-snug">{libro.titulo}</h4>
-                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                              <span className="text-sm font-semibold text-foreground/80">S/ {libro.precioNormal.toFixed(2)}</span>
-                              {agotado && <Badge variant="secondary" className="text-[10px] px-1.5 h-4">Agotado</Badge>}
-                              {!agotado && libro.stock <= 5 && (
-                                <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full font-medium">Quedan {libro.stock}</span>
-                              )}
+                      {catalogo
+                        .filter(libro => libro.titulo.toLowerCase().includes(searchQuery.toLowerCase()))
+                        .map((libro) => {
+                          const enCarrito = watchedLibros.find(l => l.titulo === libro.titulo);
+                          const cant = enCarrito?.cantidad || 0;
+                          const agotado = libro.stock <= 0;
+                          return (
+                            <div key={libro.id} className={`flex items-center justify-between p-4 transition-colors ${cant > 0 ? 'bg-primary/4' : 'bg-background hover:bg-muted/30'}`}>
+                              <div className="pr-4 flex-1 min-w-0">
+                                <h4 className="font-medium text-sm leading-snug">{libro.titulo}</h4>
+                                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                  <span className="text-sm font-semibold text-foreground/80">S/ {libro.precioNormal.toFixed(2)}</span>
+                                  {agotado && <Badge variant="secondary" className="text-[10px] px-1.5 h-4">Agotado</Badge>}
+                                  {!agotado && libro.stock <= 5 && (
+                                    <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full font-medium">Quedan {libro.stock}</span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <Button type="button" variant="outline" size="icon" className="h-8 w-8 rounded-full" disabled={cant === 0} onClick={() => onRemoveLibro(libro.titulo)}>
+                                  <Minus className="h-3.5 w-3.5" />
+                                </Button>
+                                <span className={`w-5 text-center text-sm font-semibold ${cant > 0 ? 'text-primary' : 'text-muted-foreground'}`}>{cant}</span>
+                                <Button type="button" variant="outline" size="icon" className="h-8 w-8 rounded-full" disabled={agotado || cant >= libro.stock} onClick={() => onAddLibro(libro)}>
+                                  <Plus className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <Button type="button" variant="outline" size="icon" className="h-8 w-8 rounded-full" disabled={cant === 0} onClick={() => onRemoveLibro(libro.titulo)}>
-                              <Minus className="h-3.5 w-3.5" />
-                            </Button>
-                            <span className={`w-5 text-center text-sm font-semibold ${cant > 0 ? 'text-primary' : 'text-muted-foreground'}`}>{cant}</span>
-                            <Button type="button" variant="outline" size="icon" className="h-8 w-8 rounded-full" disabled={agotado || cant >= libro.stock} onClick={() => onAddLibro(libro)}>
-                              <Plus className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {catalogo.filter(libro => libro.titulo.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
-                      <div className="p-8 text-center text-sm text-muted-foreground">No se encontraron resultados para "{searchQuery}"</div>
-                    )}
+                          );
+                        })}
+                      {catalogo.filter(libro => libro.titulo.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+                        <div className="p-8 text-center text-sm text-muted-foreground">No se encontraron resultados para "{searchQuery}"</div>
+                      )}
                     </div>
                   </>
                 )}
@@ -407,29 +407,29 @@ export function FormularioPedido() {
                         <FormControl><SelectTrigger><SelectValue placeholder="Selecciona campus" /></SelectTrigger></FormControl>
                         <SelectContent>{SEDES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                       </Select>
-                      {field.value && CAMPUS_INFO[field.value] && (
-                        <div className="space-y-2 mt-1.5">
-                          <div className="text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2 leading-relaxed">
-                            📍 {CAMPUS_INFO[field.value].direccion}
-                            {CAMPUS_INFO[field.value].piso && <><br/>🏢 {CAMPUS_INFO[field.value].piso}</>}
-                          </div>
-                          <div className="h-[200px] w-full rounded-lg overflow-hidden border">
-                            <Map center={[CAMPUS_INFO[field.value].lng, CAMPUS_INFO[field.value].lat]} zoom={15}>
-                              <MapMarker longitude={CAMPUS_INFO[field.value].lng} latitude={CAMPUS_INFO[field.value].lat}>
-                                <MarkerContent>
-                                  <div className="size-5 rounded-full bg-primary border-2 border-white shadow-lg" />
-                                </MarkerContent>
-                                <MarkerTooltip>{field.value}</MarkerTooltip>
-                              </MapMarker>
-                            </Map>
-                          </div>
-                        </div>
-                      )}
                       <FormMessage />
                     </FormItem>
                   )} />
                 )}
               </div>
+              {/* Campus address + map (full width, outside grid) */}
+              {watchedEntrega === 'Recojo en campus' && watchedCampus && CAMPUS_INFO[watchedCampus] && (
+                <div className="space-y-3 step-animate">
+                  <div className="text-sm text-muted-foreground bg-muted/40 rounded-lg px-4 py-3 leading-relaxed">
+                    📍 {CAMPUS_INFO[watchedCampus].direccion}
+                    {CAMPUS_INFO[watchedCampus].piso && <><br />🏢 {CAMPUS_INFO[watchedCampus].piso}</>}
+                  </div>
+                  <div className="h-[220px] w-full rounded-lg overflow-hidden border">
+                    <iframe
+                      key={watchedCampus}
+                      width="100%" height="100%" style={{ border: 0 }} loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      src={`https://maps.google.com/maps?q=${CAMPUS_INFO[watchedCampus].lat},${CAMPUS_INFO[watchedCampus].lng}&z=16&output=embed`}
+                      title={`Mapa ${watchedCampus}`}
+                    />
+                  </div>
+                </div>
+              )}
               {watchedEntrega === 'Envío / Delivery' && (
                 <div className="space-y-5 step-animate border-t pt-5">
                   <div className="grid gap-5 md:grid-cols-2">
@@ -525,7 +525,7 @@ export function FormularioPedido() {
                     <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                     <div className="space-y-1 leading-none">
                       <FormLabel className="font-normal text-muted-foreground text-sm">
-                        Acepto haber leído y autorizo nuestra <a href="https://ucontinental.edu.pe/politica-de-privacidad/" target="_blank" rel="noreferrer" className="text-primary font-medium underline underline-offset-4 decoration-primary/30 hover:decoration-primary">política de privacidad</a>.
+                        Acepto haber leído la <a href="https://ucontinental.edu.pe/politica-de-privacidad/" target="_blank" rel="noreferrer" className="text-primary font-medium underline underline-offset-4 decoration-primary/30 hover:decoration-primary">Política de confidencialidad y protección de datos personales</a>.
                       </FormLabel>
                       <FormMessage />
                     </div>
@@ -536,7 +536,7 @@ export function FormularioPedido() {
                     <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                     <div className="space-y-1 leading-none">
                       <FormLabel className="font-normal text-muted-foreground text-sm">
-                        Al presionar Enviar, acepto haber leído y autorizo la <a href="https://ucontinental.edu.pe/politica-de-privacidad/" target="_blank" rel="noreferrer" className="text-primary font-medium underline underline-offset-4 decoration-primary/30 hover:decoration-primary">Política de tratamiento de datos</a>.
+                        Al presionar <span className="text-primary font-medium underline underline-offset-4 decoration-primary/30 hover:decoration-primary">Enviar pedido</span>, autorizo a la Universidad Continental al tratamiento de mis datos personales, según la Política de confidencialidad y protección de datos personales.
                       </FormLabel>
                       <FormMessage />
                     </div>

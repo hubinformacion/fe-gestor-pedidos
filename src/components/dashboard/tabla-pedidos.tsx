@@ -265,20 +265,32 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
       {drawerOpen && selectedPedido && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="absolute inset-0 bg-black/40" onClick={closeDrawer} />
-          <div className="relative w-full max-w-3xl bg-background shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-200">
+          <div className="relative w-full max-w-4xl bg-background shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-200">
             {/* Header */}
-            <div className="sticky top-0 z-10 bg-background border-b px-8 py-5 flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold">Pedido {selectedPedido.codigo}</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {selectedPedido.fecha} · {selectedPedido.tipo}{selectedPedido.sede ? ` · ${selectedPedido.sede}` : ''}
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge className={`text-sm px-4 py-1.5 border ${getStatusStyle(selectedPedido.estado)}`} variant="outline">
-                  {selectedPedido.estado}
-                </Badge>
-                <Button variant="ghost" size="icon" onClick={closeDrawer} className="h-9 w-9"><X className="h-5 w-5" /></Button>
+            <div className="sticky top-0 z-10 bg-background border-b px-8 py-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold">Pedido {selectedPedido.codigo}</h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {selectedPedido.fecha} · {selectedPedido.tipo}{selectedPedido.sede ? ` · ${selectedPedido.sede}` : ''}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {!isFinalState(selectedPedido.estado) && (
+                    <>
+                      <Button variant="outline" size="sm" className="text-gray-600 border-gray-300 hover:bg-gray-100" onClick={() => updatePedido(selectedPedido.codigo, { estado: 'Abandonado' })} disabled={loadingAction}>
+                        <AlertTriangle className="h-3.5 w-3.5 mr-1.5" /> Abandonado
+                      </Button>
+                      <Button variant="outline" size="sm" className="text-red-600 border-red-300 hover:bg-red-50" onClick={() => updatePedido(selectedPedido.codigo, { estado: 'Anulado' })} disabled={loadingAction}>
+                        <Ban className="h-3.5 w-3.5 mr-1.5" /> Anulado
+                      </Button>
+                    </>
+                  )}
+                  <Badge className={`text-sm px-4 py-1.5 border ${getStatusStyle(selectedPedido.estado)}`} variant="outline">
+                    {selectedPedido.estado}
+                  </Badge>
+                  <Button variant="ghost" size="icon" onClick={closeDrawer} className="h-9 w-9"><X className="h-5 w-5" /></Button>
+                </div>
               </div>
             </div>
 
@@ -312,17 +324,6 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
                     );
                   })}
                 </div>
-                {/* Abandonado / Anulado buttons */}
-                {!isFinalState(selectedPedido.estado) && (
-                  <div className="flex gap-2 mt-4">
-                    <Button variant="outline" size="sm" className="text-gray-600 border-gray-300 hover:bg-gray-100" onClick={() => updatePedido(selectedPedido.codigo, { estado: 'Abandonado' })} disabled={loadingAction}>
-                      <AlertTriangle className="h-3.5 w-3.5 mr-1.5" /> Abandonado
-                    </Button>
-                    <Button variant="outline" size="sm" className="text-red-600 border-red-300 hover:bg-red-50" onClick={() => updatePedido(selectedPedido.codigo, { estado: 'Anulado' })} disabled={loadingAction}>
-                      <Ban className="h-3.5 w-3.5 mr-1.5" /> Anulado
-                    </Button>
-                  </div>
-                )}
                 {(selectedPedido.estado === 'Abandonado') && (
                   <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-600 text-sm font-medium text-center">Este pedido fue marcado como abandonado</div>
                 )}
@@ -392,6 +393,7 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
                       <div><span className="text-muted-foreground text-xs block mb-0.5">Documento</span><span>{selectedPedido.tipoDoc} {selectedPedido.nroDoc}</span></div>
                       <div><span className="text-muted-foreground text-xs block mb-0.5">Correo electrónico</span><span className="break-all">{selectedPedido.email}</span></div>
                       <div><span className="text-muted-foreground text-xs block mb-0.5">Teléfono</span><span>{selectedPedido.telefono}</span></div>
+                      {selectedPedido.sede && <div><span className="text-muted-foreground text-xs block mb-0.5">Sede / Vínculo</span><span className="font-medium">{selectedPedido.sede}</span></div>}
                     </div>
                     <div className="space-y-3 text-sm">
                       <div><span className="text-muted-foreground text-xs block mb-0.5">Modalidad</span><span className="font-medium">{selectedPedido.tipoEntrega}</span></div>
@@ -419,7 +421,6 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
                 const isParcial = entregaData !== null;
                 const deliveryCost = selectedPedido.zonaDelivery === 'Provincia' ? DELIVERY_PRECIO_PROVINCIA
                   : selectedPedido.zonaDelivery === 'Lima/Callao' ? DELIVERY_PRECIO_LIMA : 0;
-                // Price per item (simple parsing from total and qty)
                 const totalOriginal = parseFloat(selectedPedido.total.replace(/[^0-9.-]/g, '')) || 0;
                 const libros = parseLibros(selectedPedido.libros);
                 const totalQty = libros.reduce((s, l) => s + l.cantidad, 0);
@@ -434,44 +435,58 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
                       <Package className="w-3.5 h-3.5" /> {isParcial ? 'Libros solicitados vs entregados' : `Libros solicitados (${selectedPedido.cantidad} items)`}
                     </h4>
                     <div className="border rounded-lg overflow-hidden">
+                      {/* Table header */}
+                      <div className="grid grid-cols-12 gap-2 px-5 py-2.5 bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider border-b">
+                        <div className="col-span-5">Título</div>
+                        <div className="col-span-2 text-center">Cant.</div>
+                        <div className="col-span-2 text-right">P. Unit.</div>
+                        <div className="col-span-3 text-right">Subtotal</div>
+                      </div>
+                      {/* Book rows */}
                       {libros.map((item, i) => {
                         const delivery = entregaData?.get(item.titulo);
                         const partial = delivery && delivery.entregado < delivery.solicitado;
+                        const qty = delivery ? delivery.entregado : item.cantidad;
+                        const solicited = delivery ? delivery.solicitado : item.cantidad;
                         return (
-                          <div key={i} className={`flex items-center justify-between px-5 py-3.5 border-b last:border-0 text-sm ${partial ? 'bg-amber-50/50' : ''}`}>
-                            <div className="flex-1">
-                              <span className="font-medium">{item.titulo}</span>
-                              <span className="text-muted-foreground text-xs ml-2">(S/ {precioUnit.toFixed(2)} c/u)</span>
-                            </div>
-                            <div className="flex items-center gap-2 ml-4 shrink-0">
+                          <div key={i} className={`grid grid-cols-12 gap-2 px-5 py-3 border-b last:border-0 text-sm items-center ${partial ? 'bg-amber-50/50' : ''}`}>
+                            <div className="col-span-5 font-medium truncate" title={item.titulo}>{item.titulo}</div>
+                            <div className="col-span-2 text-center">
                               {delivery ? (
-                                <>
+                                <span className="inline-flex items-center gap-1">
                                   <span className={`font-mono font-bold ${partial ? 'text-amber-600' : 'text-emerald-600'}`}>{delivery.entregado}</span>
                                   <span className="text-muted-foreground text-xs">/</span>
-                                  <span className="font-mono text-muted-foreground">{delivery.solicitado}</span>
-                                  {partial && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">Parcial</span>}
-                                </>
+                                  <span className="font-mono text-muted-foreground">{solicited}</span>
+                                  {partial && <span className="text-[9px] bg-amber-100 text-amber-700 px-1 py-0.5 rounded-full font-medium ml-1">Parcial</span>}
+                                </span>
                               ) : (
-                                <span className="text-muted-foreground font-mono">×{item.cantidad}</span>
+                                <span className="font-mono">{item.cantidad}</span>
                               )}
                             </div>
+                            <div className="col-span-2 text-right text-muted-foreground">S/ {precioUnit.toFixed(2)}</div>
+                            <div className="col-span-3 text-right font-medium">S/ {(qty * precioUnit).toFixed(2)}</div>
                           </div>
                         );
                       })}
+                      {/* Delivery row */}
                       {deliveryCost > 0 && (
-                        <div className="flex justify-between items-center px-5 py-3 border-b text-sm bg-muted/20">
-                          <span className="text-muted-foreground">Envío / Delivery ({selectedPedido.zonaDelivery})</span>
-                          <span className="font-medium">S/ {deliveryCost.toFixed(2)}</span>
+                        <div className="grid grid-cols-12 gap-2 px-5 py-3 border-b text-sm bg-muted/20 items-center">
+                          <div className="col-span-5 text-muted-foreground">Envío / Delivery ({selectedPedido.zonaDelivery})</div>
+                          <div className="col-span-2"></div>
+                          <div className="col-span-2"></div>
+                          <div className="col-span-3 text-right font-medium">S/ {deliveryCost.toFixed(2)}</div>
                         </div>
                       )}
-                      <div className="px-5 py-4 bg-muted/30 space-y-1">
-                        <div className="flex justify-between items-center font-bold">
-                          <span>Total</span><span className="text-lg text-primary">{selectedPedido.total}</span>
+                      {/* Totals */}
+                      <div className="px-5 py-4 bg-muted/30 space-y-1.5">
+                        <div className="grid grid-cols-12 gap-2 items-center">
+                          <div className="col-span-9 font-bold text-base">Total</div>
+                          <div className="col-span-3 text-right font-bold text-lg text-primary">{selectedPedido.total}</div>
                         </div>
                         {isParcial && (
-                          <div className="flex justify-between items-center text-sm">
-                            <span className="text-emerald-700 font-medium">Total recibido</span>
-                            <span className="text-emerald-700 font-semibold">S/ {totalEntregado.toFixed(2)}</span>
+                          <div className="grid grid-cols-12 gap-2 items-center">
+                            <div className="col-span-9 text-emerald-700 font-medium text-sm">Total recibido</div>
+                            <div className="col-span-3 text-right text-emerald-700 font-semibold text-sm">S/ {totalEntregado.toFixed(2)}</div>
                           </div>
                         )}
                       </div>
