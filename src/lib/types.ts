@@ -65,38 +65,46 @@ export interface Pedido {
 }
 
 // ── Direcciones de campus (orden alfabético) ──
-export const CAMPUS_INFO: Record<string, { direccion: string; piso: string }> = {
+export const CAMPUS_INFO: Record<string, { direccion: string; piso: string; lat: number; lng: number }> = {
   'Campus Arequipa': {
     direccion: 'La Canseco ll / Sector: Valle Chili, José Luis Bustamante y Rivero - Arequipa',
     piso: 'Pabellón A, sexto piso',
+    lat: -16.4205, lng: -71.5195,
   },
   'Campus Ayacucho': {
     direccion: 'Av. Javier Perez de Cuellar 725. Ayacucho',
     piso: '',
+    lat: -13.1588, lng: -74.2244,
   },
   'Campus Cusco': {
     direccion: 'Sector Angostura Km. 10, carretera Cusco - Saylla, San Jerónimo, Cusco',
     piso: 'Pabellón A, tercer piso frente al Fab Lab',
+    lat: -13.5545, lng: -71.8870,
   },
   'Campus Huancayo - Instituto': {
     direccion: 'Calle Real 125, Huancayo - Junín',
     piso: '1er piso, a la izquierda de la entrada principal de Jr. Arequipa al frente del taller de diseño',
+    lat: -12.0651, lng: -75.2049,
   },
   'Campus Huancayo - Universidad': {
     direccion: 'Av. San Carlos 1980, Huancayo',
     piso: 'Pabellón F: 3er piso',
+    lat: -12.0464, lng: -75.1977,
   },
   'Campus Ica': {
     direccion: 'Calle C N° 201 - Parque Industrial, Ica',
     piso: 'Pabellón F',
+    lat: -14.0755, lng: -75.7286,
   },
   'Campus Lima - Los Olivos': {
     direccion: 'Av. Alfredo Mendiola 5210 - Los Olivos',
     piso: 'Pabellón A, sexto piso',
+    lat: -11.9818, lng: -77.0664,
   },
   'Campus Lima - Miraflores': {
     direccion: 'Calle Junin 355 Miraflores - Lima',
     piso: '',
+    lat: -12.1197, lng: -77.0303,
   },
 };
 

@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { Clock, Package, MapPin, User, Minus, Plus, X, CheckCircle2, CircleDot, Circle, Save, Ban, AlertTriangle } from 'lucide-react';
+import { Clock, Package, MapPin, User, Minus, Plus, X, CheckCircle2, CircleDot, Circle, Save, Ban, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { calcularSLA, parsearFecha } from '@/lib/date-utils';
 
@@ -26,6 +26,7 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
   const [newNote, setNewNote] = useState('');
   const [showConfirmEntrega, setShowConfirmEntrega] = useState(false);
   const [itemsEntrega, setItemsEntrega] = useState<ItemEntrega[]>([]);
+  const [detailsOpen, setDetailsOpen] = useState(true);
 
   const filtered = pedidos.filter(p => {
     const matchSearch = p.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -378,34 +379,36 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
 
               <Separator />
 
-              {/* ── Client info (3 cols) ── */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div className="space-y-4">
-                  <h4 className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-2"><User className="w-3.5 h-3.5" /> Datos del cliente</h4>
-                  <div className="space-y-3 text-sm">
-                    <div><span className="text-muted-foreground text-xs block mb-0.5">Nombre completo</span><span className="font-medium text-base">{selectedPedido.nombre}</span></div>
-                    <div><span className="text-muted-foreground text-xs block mb-0.5">Documento</span><span>{selectedPedido.tipoDoc} {selectedPedido.nroDoc}</span></div>
-                    <div><span className="text-muted-foreground text-xs block mb-0.5">Correo electrónico</span><span className="break-all">{selectedPedido.email}</span></div>
-                    <div><span className="text-muted-foreground text-xs block mb-0.5">Teléfono</span><span>{selectedPedido.telefono}</span></div>
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <h4 className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-2"><MapPin className="w-3.5 h-3.5" /> Entrega</h4>
-                  <div className="space-y-3 text-sm">
-                    <div><span className="text-muted-foreground text-xs block mb-0.5">Modalidad</span><span className="font-medium">{selectedPedido.tipoEntrega}</span></div>
-                    <div><span className="text-muted-foreground text-xs block mb-0.5">Detalle</span><span>{selectedPedido.detalleEntrega || '—'}</span></div>
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <h4 className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-2"><Clock className="w-3.5 h-3.5" /> Atención (SLA)</h4>
-                  <div className="space-y-3 text-sm">
-                    <div><span className="text-muted-foreground text-xs block mb-0.5">Inicio</span><span>{selectedPedido.fechaInicioAtencion || '—'}</span></div>
-                    <div><span className="text-muted-foreground text-xs block mb-0.5">Fin</span><span>{selectedPedido.fechaFinAtencion || '—'}</span></div>
-                    <div className="flex items-center gap-2 text-primary font-medium pt-1">
-                      <Clock className="w-3.5 h-3.5" /><span>{getSLADisplay(selectedPedido.fechaInicioAtencion, selectedPedido.fechaFinAtencion)}</span>
+              {/* ── Client info (collapsible) ── */}
+              <div>
+                <button type="button" onClick={() => setDetailsOpen(!detailsOpen)} className="flex items-center justify-between w-full text-xs font-semibold tracking-widest uppercase text-muted-foreground py-2 hover:text-foreground transition-colors">
+                  <span className="flex items-center gap-2"><User className="w-3.5 h-3.5" /> Datos del cliente y entrega</span>
+                  {detailsOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+                {detailsOpen && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-2">
+                    <div className="space-y-3 text-sm">
+                      <div><span className="text-muted-foreground text-xs block mb-0.5">Nombre completo</span><span className="font-medium text-base">{selectedPedido.nombre}</span></div>
+                      <div><span className="text-muted-foreground text-xs block mb-0.5">Documento</span><span>{selectedPedido.tipoDoc} {selectedPedido.nroDoc}</span></div>
+                      <div><span className="text-muted-foreground text-xs block mb-0.5">Correo electrónico</span><span className="break-all">{selectedPedido.email}</span></div>
+                      <div><span className="text-muted-foreground text-xs block mb-0.5">Teléfono</span><span>{selectedPedido.telefono}</span></div>
+                    </div>
+                    <div className="space-y-3 text-sm">
+                      <div><span className="text-muted-foreground text-xs block mb-0.5">Modalidad</span><span className="font-medium">{selectedPedido.tipoEntrega}</span></div>
+                      <div><span className="text-muted-foreground text-xs block mb-0.5">Detalle</span><span>{selectedPedido.detalleEntrega || '—'}</span></div>
+                      {selectedPedido.zonaDelivery && <div><span className="text-muted-foreground text-xs block mb-0.5">Zona delivery</span><span>{selectedPedido.zonaDelivery}</span></div>}
+                      {selectedPedido.referenciaDelivery && <div><span className="text-muted-foreground text-xs block mb-0.5">Referencia</span><span>{selectedPedido.referenciaDelivery}</span></div>}
+                      {selectedPedido.receptor && <div><span className="text-muted-foreground text-xs block mb-0.5">Recibe</span><span className="font-medium">{selectedPedido.receptor || 'El/La comprador(a)'}</span></div>}
+                    </div>
+                    <div className="space-y-3 text-sm">
+                      <div><span className="text-muted-foreground text-xs block mb-0.5">Inicio atención</span><span>{selectedPedido.fechaInicioAtencion || '—'}</span></div>
+                      <div><span className="text-muted-foreground text-xs block mb-0.5">Fin atención</span><span>{selectedPedido.fechaFinAtencion || '—'}</span></div>
+                      <div className="flex items-center gap-2 text-primary font-medium pt-1">
+                        <Clock className="w-3.5 h-3.5" /><span>{getSLADisplay(selectedPedido.fechaInicioAtencion, selectedPedido.fechaFinAtencion)}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
 
               <Separator />
@@ -414,31 +417,32 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
               {(() => {
                 const entregaData = getEntregaData(selectedPedido.observaciones);
                 const isParcial = entregaData !== null;
-                // Delivery cost
                 const deliveryCost = selectedPedido.zonaDelivery === 'Provincia' ? DELIVERY_PRECIO_PROVINCIA
                   : selectedPedido.zonaDelivery === 'Lima/Callao' ? DELIVERY_PRECIO_LIMA : 0;
-                // Calculate totals for difference display
+                // Price per item (simple parsing from total and qty)
                 const totalOriginal = parseFloat(selectedPedido.total.replace(/[^0-9.-]/g, '')) || 0;
+                const libros = parseLibros(selectedPedido.libros);
+                const totalQty = libros.reduce((s, l) => s + l.cantidad, 0);
+                const precioUnit = totalQty > 0 ? (totalOriginal - deliveryCost) / totalQty : 0;
                 let totalEntregado = totalOriginal;
                 if (isParcial) {
-                  const libros = parseLibros(selectedPedido.libros);
-                  const totalOriginalQty = libros.reduce((s, l) => s + l.cantidad, 0);
-                  const precioUnitPromedio = totalOriginalQty > 0 ? (totalOriginal - deliveryCost) / totalOriginalQty : 0;
-                  totalEntregado = Array.from(entregaData!.values()).reduce((s, d) => s + (d.entregado * precioUnitPromedio), 0) + deliveryCost;
+                  totalEntregado = Array.from(entregaData!.values()).reduce((s, d) => s + (d.entregado * precioUnit), 0) + deliveryCost;
                 }
-                const diferencia = totalOriginal - totalEntregado;
                 return (
                   <div className="space-y-4">
                     <h4 className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-2">
                       <Package className="w-3.5 h-3.5" /> {isParcial ? 'Libros solicitados vs entregados' : `Libros solicitados (${selectedPedido.cantidad} items)`}
                     </h4>
                     <div className="border rounded-lg overflow-hidden">
-                      {parseLibros(selectedPedido.libros).map((item, i) => {
+                      {libros.map((item, i) => {
                         const delivery = entregaData?.get(item.titulo);
                         const partial = delivery && delivery.entregado < delivery.solicitado;
                         return (
                           <div key={i} className={`flex items-center justify-between px-5 py-3.5 border-b last:border-0 text-sm ${partial ? 'bg-amber-50/50' : ''}`}>
-                            <span className="font-medium flex-1">{item.titulo}</span>
+                            <div className="flex-1">
+                              <span className="font-medium">{item.titulo}</span>
+                              <span className="text-muted-foreground text-xs ml-2">(S/ {precioUnit.toFixed(2)} c/u)</span>
+                            </div>
                             <div className="flex items-center gap-2 ml-4 shrink-0">
                               {delivery ? (
                                 <>
@@ -462,19 +466,13 @@ export function TablaPedidos({ pedidos, token, onRefresh }: TablaPedidosProps) {
                       )}
                       <div className="px-5 py-4 bg-muted/30 space-y-1">
                         <div className="flex justify-between items-center font-bold">
-                          <span>Total solicitado</span><span className="text-lg text-primary">{selectedPedido.total}</span>
+                          <span>Total</span><span className="text-lg text-primary">{selectedPedido.total}</span>
                         </div>
                         {isParcial && (
-                          <>
-                            <div className="flex justify-between items-center text-sm">
-                              <span className="text-emerald-700 font-medium">Total entregado</span>
-                              <span className="text-emerald-700 font-semibold">S/ {totalEntregado.toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between items-center text-sm">
-                              <span className="text-amber-700 font-medium">Diferencia</span>
-                              <span className="text-amber-700 font-semibold">S/ {diferencia.toFixed(2)}</span>
-                            </div>
-                          </>
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-emerald-700 font-medium">Total recibido</span>
+                            <span className="text-emerald-700 font-semibold">S/ {totalEntregado.toFixed(2)}</span>
+                          </div>
                         )}
                       </div>
                     </div>

@@ -8,6 +8,7 @@ import { CheckCircle2, Loader2, Minus, Plus, ShoppingCart, AlertCircle, ChevronR
 
 import { datosPedidoSchema } from '@/lib/validations';
 import { Libro, SEDES, CAMPUS_INFO, DELIVERY_PRECIO_LIMA, DELIVERY_PRECIO_PROVINCIA } from '@/lib/types';
+import { Map, MapMarker, MarkerContent, MarkerTooltip } from '@/components/ui/map';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,6 +47,22 @@ export function FormularioPedido() {
   const watchedLibros = watch('libros');
   const watchedZonaDelivery = watch('zonaDelivery');
   const watchedReceptorTipo = watch('receptorTipo');
+
+  // Reset delivery fields when switching to Recojo en campus
+  useEffect(() => {
+    if (watchedEntrega === 'Recojo en campus') {
+      setValue('zonaDelivery', '' as any);
+      setValue('departamento', '');
+      setValue('direccion', '');
+      setValue('referenciaDelivery', '');
+      setValue('receptorTipo', '' as any);
+      setValue('receptorNombre', '');
+      setValue('receptorDocumento', '');
+    }
+    if (watchedEntrega === 'Envío / Delivery') {
+      setValue('campusRecojo', '');
+    }
+  }, [watchedEntrega, setValue]);
 
   // 4 steps: Publicaciones → Datos del comprador → Entrega → Confirmación
   const steps = [
@@ -391,9 +408,21 @@ export function FormularioPedido() {
                         <SelectContent>{SEDES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                       </Select>
                       {field.value && CAMPUS_INFO[field.value] && (
-                        <div className="text-xs text-muted-foreground mt-1.5 bg-muted/40 rounded-md px-3 py-2 leading-relaxed">
-                          📍 {CAMPUS_INFO[field.value].direccion}
-                          {CAMPUS_INFO[field.value].piso && <><br/>🏢 {CAMPUS_INFO[field.value].piso}</>}
+                        <div className="space-y-2 mt-1.5">
+                          <div className="text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2 leading-relaxed">
+                            📍 {CAMPUS_INFO[field.value].direccion}
+                            {CAMPUS_INFO[field.value].piso && <><br/>🏢 {CAMPUS_INFO[field.value].piso}</>}
+                          </div>
+                          <div className="h-[200px] w-full rounded-lg overflow-hidden border">
+                            <Map center={[CAMPUS_INFO[field.value].lng, CAMPUS_INFO[field.value].lat]} zoom={15}>
+                              <MapMarker longitude={CAMPUS_INFO[field.value].lng} latitude={CAMPUS_INFO[field.value].lat}>
+                                <MarkerContent>
+                                  <div className="size-5 rounded-full bg-primary border-2 border-white shadow-lg" />
+                                </MarkerContent>
+                                <MarkerTooltip>{field.value}</MarkerTooltip>
+                              </MapMarker>
+                            </Map>
+                          </div>
                         </div>
                       )}
                       <FormMessage />
@@ -410,8 +439,8 @@ export function FormularioPedido() {
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl><SelectTrigger><SelectValue placeholder="Selecciona zona" /></SelectTrigger></FormControl>
                           <SelectContent>
-                            <SelectItem value="Lima/Callao">Lima / Callao — S/ {DELIVERY_PRECIO_LIMA.toFixed(2)}</SelectItem>
-                            <SelectItem value="Provincia">Provincia — S/ {DELIVERY_PRECIO_PROVINCIA.toFixed(2)}</SelectItem>
+                            <SelectItem value="Lima/Callao">Lima / Callao</SelectItem>
+                            <SelectItem value="Provincia">Provincia</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
